@@ -5,6 +5,187 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portafolio de Trabajos</title>
     <meta name="description" content="Mira mis trabajos realizados con calidad y dedicación">
+    <style>
+/* ===== GRID DE POSTS ===== */
+.posts-grid  {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
+  gap: 1.5rem !important;
+  padding: 2rem 0 !important;
+}
+
+/* ===== TARJETAS DE POSTS ===== */
+.post-card {
+  background: white !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 400px !important; /* Altura fija para todas las tarjetas */
+}
+
+.post-card:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ===== MEDIA CONTAINER ===== */
+.post-media {
+  position: relative !important;
+  height: 200px !important; /* Altura fija para el área de medios */
+  overflow: hidden !important;
+  background: #f8f9fa !important;
+  flex-shrink: 0 !important; /* No se encoge */
+}
+
+.post-media img,
+.post-media video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important; /* Importante: mantiene proporción sin deformar */
+  transition: transform 0.3s ease !important;
+}
+
+.post-card:hover .post-media img,
+.post-card:hover .post-media video {
+  transform: scale(1.05) !important;
+}
+
+/* ===== OVERLAY PARA VIDEOS ===== */
+.play-overlay {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  border-radius: 50% !important;
+  width: 50px !important;
+  height: 50px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s ease !important;
+  opacity: 0.8 !important;
+}
+
+.post-card:hover .play-overlay {
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1.1) !important;
+}
+
+.play-icon {
+  color: white !important;
+  font-size: 16px !important;
+  margin-left: 2px !important;
+}
+
+/* ===== CATEGORIA BADGE ===== */
+.post-categoria {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* ===== CONTENIDO DE LA TARJETA ===== */
+.post-content {
+  padding: 1.5rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-grow: 1 !important; /* Ocupa el espacio restante */
+  justify-content: space-between !important;
+}
+
+.post-titulo {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+  color: #2d3748 !important;
+  line-height: 1.4 !important;
+  /* Limitar a 2 líneas */
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.post-descripcion {
+  color: #718096 !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.5 !important;
+  font-size: 0.9rem !important;
+  flex-grow: 1 !important;
+  /* Limitar a 3 líneas */
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* ===== META INFORMACIÓN ===== */
+.post-meta {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  font-size: 0.8rem !important;
+  color: #a0aec0 !important;
+  margin-top: auto !important; /* Se empuja hacia abajo */
+}
+
+.post-fecha {
+  font-weight: 500 !important;
+}
+
+.post-tipo {
+  font-size: 1.2rem !important;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  #posts-container {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 1rem !important;
+    padding: 1rem 0 !important;
+  }
+  
+  .post-card {
+    height: 350px !important;
+  }
+  
+  .post-media {
+    height: 180px !important;
+  }
+  
+  .post-content {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #posts-container {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .post-card {
+    height: 320px !important;
+  }
+  
+  .post-media {
+    height: 160px !important;
+  }
+}
+    </style>
     <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
