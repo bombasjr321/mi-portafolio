@@ -44,8 +44,6 @@ class Portfolio {
             this.mostrarLoading(true);
             const response = await fetch('/.netlify/functions/get-posts');
             if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
-this.posts = await response.json();
-console.log('Posts cargados:', this.posts);
 
             this.posts = await response.json();
             console.log('Posts cargados:', this.posts.length);
@@ -98,7 +96,7 @@ console.log('Posts cargados:', this.posts);
         const cards = document.querySelectorAll('.post-card');
         cards.forEach(card => {
             card.addEventListener('click', () => {
-                const postId = card.dataset.id;
+                const postId = parseInt(card.dataset.id, 10);
                 this.abrirModal(postId);
             });
         });
@@ -222,8 +220,7 @@ console.log('Posts cargados:', this.posts);
     if (!archivo || typeof archivo !== 'string' || !archivo.includes('.')) return false;
     const extension = archivo.split('.').pop().toLowerCase();
     return ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(extension);
-}
-}
+	}
 
     truncarTexto(texto, limite) {
         if (texto.length <= limite) return texto;
@@ -262,7 +259,7 @@ window.compartirTrabajo = function(postId) {
         navigator.share({
             title: post.title,
             text: post.excerpt,
-            url: window.location.href
+            url: `${window.location.origin}?post=${post.id}`
         });
     } else {
         navigator.clipboard.writeText(window.location.href);
