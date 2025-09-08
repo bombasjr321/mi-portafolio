@@ -1,7 +1,6 @@
 // netlify/functions/upload-file.js
-// Función para subir archivos (fotos y videos)
+// Función para subir archivos SIN dependencias externas
 
-const multipart = require('lambda-multipart-parser');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
@@ -32,22 +31,26 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // Parsear datos multipart
-        const result = await multipart.parse(event);
+        // Para simplicidad, vamos a usar base64 en lugar de multipart
+        // El frontend enviará: { filename, content, contentType }
+        const requestData = JSON.parse(event.body);
         
-        if (!result.files || result.files.length === 0) {
+        if (!requestData.filename || !requestData.content || !requestData.contentType) {
             return {
                 statusCode: 400,
                 headers,
-                body: JSON.stringify({ error: 'No se encontró archivo' })
+                body: JSON.stringify({ 
+                    error: 'Faltan datos requeridos: filename, content, contentType' 
+                })
             };
         }
 
-        const file = result.files[0];
+        // Decodificar base64
+        const fileBuffer = Buffer.from(requestData.content, 'base64');
         
         // Validar tamaño (50MB máximo)
         const maxSize = 50 * 1024 * 1024; // 50MB
-        if (file.content.length > maxSize) {
+        if (fileBuffer.length > maxSize) {
             return {
                 statusCode: 400,
                 headers,
@@ -61,7 +64,7 @@ exports.handler = async (event, context) => {
             'video/mp4', 'video/mov', 'video/avi', 'video/webm', 'video/quicktime'
         ];
         
-        if (!tiposPermitidos.includes(file.contentType)) {
+        if (!tiposPermitidos.includes(requestData.contentType)) {
             return {
                 statusCode: 400,
                 headers,
@@ -73,11 +76,11 @@ exports.handler = async (event, context) => {
         }
 
         // Generar nombre único para el archivo
-        const extension = obtenerExtension(file.filename, file.contentType);
+        const extension = obtenerExtension(requestData.filename, requestData.contentType);
         const nombreUnico = generarNombreUnico(extension);
         
         // Determinar carpeta según tipo
-        const esVideo = file.contentType.startsWith('video/');
+        const esVideo = requestData.contentType.startsWith('video/');
         const carpeta = esVideo ? 'videos' : 'fotos';
         
         // Crear directorios si no existen
@@ -86,26 +89,16 @@ exports.handler = async (event, context) => {
         
         // Guardar archivo
         const rutaArchivo = path.join(mediaDir, nombreUnico);
-        await fs.writeFile(rutaArchivo, file.content);
+        await fs.writeFile(rutaArchivo, fileBuffer);
         
         // Crear URL pública
         const urlPublica = `/media/trabajos/${carpeta}/${nombreUnico}`;
         
-        // Para videos, crear thumbnail si es posible
-        let thumbnailUrl = null;
-        if (esVideo) {
-            try {
-                thumbnailUrl = await generarThumbnailVideo(rutaArchivo, nombreUnico);
-            } catch (error) {
-                console.log('No se pudo generar thumbnail:', error.message);
-            }
-        }
-
         // Registrar subida en log
         await registrarSubida({
             archivo: nombreUnico,
-            tipo: file.contentType,
-            tamaño: file.content.length,
+            tipo: requestData.contentType,
+            tamaño: fileBuffer.length,
             fecha: new Date().toISOString()
         });
 
@@ -115,10 +108,9 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({
                 success: true,
                 url: urlPublica,
-                thumbnail: thumbnailUrl,
                 filename: nombreUnico,
-                size: file.content.length,
-                type: file.contentType,
+                size: fileBuffer.length,
+                type: requestData.contentType,
                 message: 'Archivo subido exitosamente'
             })
         };
@@ -165,19 +157,6 @@ function obtenerExtension(filename, contentType) {
     };
     
     return extensiones[contentType] || '.bin';
-}
-
-// Función para generar thumbnail de video (simplificada)
-async function generarThumbnailVideo(rutaVideo, nombreArchivo) {
-    // En una implementación completa, aquí usarías FFmpeg u otra herramienta
-    // Por ahora, retornamos null
-    // 
-    // Ejemplo conceptual:
-    // const thumbnailPath = rutaVideo.replace(/\.[^/.]+$/, "_thumb.jpg");
-    // await ffmpeg.generateThumbnail(rutaVideo, thumbnailPath);
-    // return `/media/thumbnails/${nombreArchivo.replace(/\.[^/.]+$/, "_thumb.jpg")}`;
-    
-    return null;
 }
 
 // Función para registrar subidas (log simple)

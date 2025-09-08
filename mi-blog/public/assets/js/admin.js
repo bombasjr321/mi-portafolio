@@ -373,6 +373,20 @@ class AdminPanel {
         }
     }
 
+    // Función helper para convertir archivo a base64
+    archivoABase64(archivo) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                // Remover el prefijo "data:image/jpeg;base64," etc.
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(archivo);
+        });
+    }
+
     truncarTexto(texto, limite) {
         if (texto.length <= limite) return texto;
         return texto.substring(0, limite) + '...';
