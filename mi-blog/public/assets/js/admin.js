@@ -165,17 +165,23 @@ class AdminPanel {
       const title = (titleInput && titleInput.value) ? titleInput.value.trim() : filename;
       const excerpt = excerptInput && excerptInput.value ? excerptInput.value.trim() : '';
       const categoria = categoriaInput && categoriaInput.value ? categoriaInput.value : '';
-      const branch = branchInput && branchInput.value ? branchInput.value : undefined;
+      const branch = branchInput && branchInput.value ? branchInput.value : 'main';
 
       this.setStatus('Leyendo archivo...', 'loading');
 
+      // Convertir archivo a base64 puro (sin encabezado data:)
       const base64 = await this.readFileAsBase64(file);
       const commaIndex = base64.indexOf(',');
       const pureBase64 = commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64;
 
-      // llamar upload-file
+      // ✅ AQUÍ ESTÁ EL CAMBIO: enviamos JSON con el formato que espera upload-file
       this.setStatus('Subiendo archivo...', 'loading');
-      const payloadFile = { filename, content: pureBase64, branch };
+      const payloadFile = {
+        filename: filename,
+        branch: branch,
+        content: pureBase64  // base64 puro sin "data:image/png;base64,"
+      };
+
       const resp = await fetch(this.endpoints.uploadFile, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -188,51 +194,35 @@ class AdminPanel {
       }
 
       const body = await resp.json();
-      // la función puede devolver url, fileUrl, path, location...
-      const fileUrl = body.url || body.fileUrl || body.path || body.location || body.file?.url;
+      // la función ahora devuelve { url, postId }
+      const fileUrl = body.url;
+      const postId = body.postId;
+      
       if (!fileUrl) {
         console.warn('upload-file response:', body);
         throw new Error('La función upload-file no devolvió la URL pública del archivo.');
       }
 
-      // registrar post
-      this.setStatus('Registrando el post en posts.json...', 'loading');
-      const tipo = /\.(mp4|mov|avi|webm|mkv)$/i.test(file.name) ? 'video' : 'imagen';
-      const postPayload = {
-        titulo: title,
-        descripcion: excerpt,
-        categoria,
-        archivo: fileUrl,
-        tipo,
-        thumbnail: tipo === 'imagen' ? (body.thumbnail || fileUrl) : (body.thumbnail || null)
-      };
+      this.setStatus('Archivo subido y post registrado ✅', 'success');
 
-      const respPost = await fetch(this.endpoints.uploadPost, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postPayload)
-      });
-
-      if (!respPost.ok) {
-        const txt = await respPost.text();
-        throw new Error(`Error registrando post: ${respPost.status} ${txt}`);
-      }
-
-      const respPostBody = await respPost.json();
-      this.setStatus('Subida completada ✅', 'success');
-
+      // ✅ YA NO NECESITAMOS llamar upload-post porque upload-file ya actualiza posts.json
       // actualizar UI: insertar al inicio
-      const newId = respPostBody.id || (Date.now() + '_' + Math.random().toString(36).slice(2,8));
+      const tipo = /\.(mp4|mov|avi|webm|mkv)$/i.test(file.name) ? 'video' : 'imagen';
       const newPost = {
-        id: newId,
-        titulo: title,
-        descripcion: excerpt,
-        categoria,
-        archivo: fileUrl,
+        id: postId || `${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+        title: title,
+        titulo: title, // compatibilidad
+        url: fileUrl,
+        archivo: fileUrl, // compatibilidad
+        excerpt: excerpt,
+        descripcion: excerpt, // compatibilidad
+        categoria: categoria,
         tipo: tipo,
-        thumbnail: postPayload.thumbnail,
-        fecha: new Date().toISOString()
+        thumbnail: tipo === 'imagen' ? fileUrl : null,
+        date: new Date().toISOString(),
+        fecha: new Date().toISOString() // compatibilidad
       };
+      
       this.posts.unshift(newPost);
       this.renderizarPostsAdmin();
 
@@ -245,8 +235,6 @@ class AdminPanel {
     } catch (err) {
       console.error('Error en la subida:', err);
       this.setStatus('Error en la subida: ' + (err.message || err), 'error');
-      // also alert to be visible
-      // alert('Error en la subida: ' + (err.message || err));
     }
   }
 
@@ -364,4 +352,3 @@ if (typeof window !== 'undefined') {
     admin.init();
   });
 }
-
