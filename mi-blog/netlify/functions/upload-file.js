@@ -1,160 +1,92 @@
-// netlify/functions/upload-file.js
-// Sube archivos a GitHub repository
+/* ======================================================
+netlify/functions/upload-file.js
+- Recibe JSON: { filename, content (base64), title, excerpt, branch? }
+- Sube archivo a repo en public/media/<filename>
+- Actualiza public/posts.json (crea si no existe)
+- Devuelve { url, postId }
+====================================================== */
+
+
+// Nota: Netlify Functions en Node 18+ tienen fetch disponible globalmente.
+
+
+const GITHUB_API_BASE = 'https://api.github.com';
+
 
 exports.handler = async (event, context) => {
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-    };
-
-    if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
-    }
-
-    if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            headers,
-            body: JSON.stringify({ error: 'Método no permitido' })
-        };
-    }
-
-    try {
-        const { filename, content, contentType } = JSON.parse(event.body);
-        
-        if (!filename || !content || !contentType) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Faltan datos requeridos' })
-            };
-        }
-
-        // Validar tamaño (GitHub tiene límite de 100MB, pero recomendamos 50MB)
-        const estimatedSize = (content.length * 3) / 4; // base64 to bytes
-        const maxSize = 50 * 1024 * 1024; // 50MB
-        
-        if (estimatedSize > maxSize) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Archivo demasiado grande. Máximo 50MB.' })
-            };
-        }
-
-        // Validar tipo
-        const tiposPermitidos = [
-            'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
-            'video/mp4', 'video/mov', 'video/avi', 'video/webm', 'video/quicktime'
-        ];
-        
-        if (!tiposPermitidos.includes(contentType)) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Tipo de archivo no permitido' })
-            };
-        }
-
-        // Generar nombre único
-        const extension = obtenerExtension(filename, contentType);
-        const nombreUnico = generarNombreUnico(extension);
-        
-        // Determinar carpeta
-        const esVideo = contentType.startsWith('video/');
-        const carpeta = esVideo ? 'videos' : 'fotos';
-        const rutaArchivo = `public/media/trabajos/${carpeta}/${nombreUnico}`;
-
-        // Subir archivo a GitHub
-        await subirArchivoAGitHub(rutaArchivo, content, `Subir ${carpeta.slice(0, -1)}: ${nombreUnico}`);
-
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-                success: true,
-                url: `/media/trabajos/${carpeta}/${nombreUnico}`,
-                filename: nombreUnico,
-                size: Math.round(estimatedSize),
-                type: contentType,
-                message: 'Archivo subido a GitHub exitosamente'
-            })
-        };
-
-    } catch (error) {
-        console.error('Error subiendo archivo:', error);
-        
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({
-                error: 'Error interno del servidor',
-                details: error.message
-            })
-        };
-    }
+const headers = {
+'Access-Control-Allow-Origin': '*',
+'Access-Control-Allow-Headers': 'Content-Type, Accept',
+'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-// Función para subir archivo a GitHub
-async function subirArchivoAGitHub(rutaArchivo, contenidoBase64, mensaje) {
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const REPO_OWNER = process.env.GITHUB_OWNER;
-    const REPO_NAME = process.env.GITHUB_REPO;
-    
-    if (!GITHUB_TOKEN || !REPO_OWNER || !REPO_NAME) {
-        throw new Error('Faltan variables de entorno de GitHub');
-    }
 
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${rutaArchivo}`;
+if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
 
-    const body = {
-        message: mensaje,
-        content: contenidoBase64
-    };
 
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error GitHub API: ${response.status} - ${errorText}`);
-    }
-
-    return await response.json();
+try {
+if (!process.env.GITHUB_OWNER || !process.env.GITHUB_REPO || !process.env.GITHUB_TOKEN) {
+return { statusCode: 500, headers, body: JSON.stringify({ error: 'Faltan variables de entorno GITHUB_OWNER/GITHUB_REPO/GITHUB_TOKEN' }) };
 }
 
-// Utilidades
-function generarNombreUnico(extension) {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    return `${timestamp}_${random}${extension}`;
+
+const bodyText = event.body;
+const payload = JSON.parse(bodyText);
+
+
+const owner = process.env.GITHUB_OWNER;
+const repo = process.env.GITHUB_REPO;
+const token = process.env.GITHUB_TOKEN;
+const branch = payload.branch || process.env.GITHUB_BRANCH || 'main';
+
+
+const filepath = `public/media/${payload.filename}`;
+
+
+// 1) Check if file exists to get sha (so we update instead of create)
+let fileSha = null;
+try {
+const getFileResp = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(filepath)}?ref=${branch}`, {
+headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'netlify-function' }
+});
+if (getFileResp.ok) {
+const fileJson = await getFileResp.json();
+fileSha = fileJson.sha;
+}
+} catch (err) {
+console.log('No existe el archivo aún o error al comprobarlo:', err.message);
 }
 
-function obtenerExtension(filename, contentType) {
-    if (filename && filename.includes('.')) {
-        return '.' + filename.split('.').pop().toLowerCase();
-    }
-    
-    const extensiones = {
-        'image/jpeg': '.jpg',
-        'image/jpg': '.jpg', 
-        'image/png': '.png',
-        'image/webp': '.webp',
-        'image/gif': '.gif',
-        'video/mp4': '.mp4',
-        'video/mov': '.mov',
-        'video/quicktime': '.mov',
-        'video/avi': '.avi',
-        'video/webm': '.webm'
-    };
-    
-    return extensiones[contentType] || '.bin';
+
+// 2) Upload (create or update) the media file
+const uploadMessage = fileSha ? `Update ${filepath}` : `Add ${filepath}`;
+const uploadResp = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(filepath)}`, {
+method: 'PUT',
+headers: {
+Authorization: `Bearer ${token}`,
+'User-Agent': 'netlify-function',
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({
+message: uploadMessage,
+content: payload.content,
+branch,
+sha: fileSha || undefined
+})
+});
+
+
+if (!uploadResp.ok) {
+const txt = await uploadResp.text();
+console.error('Error subiendo archivo:', uploadResp.status, txt);
+return { statusCode: 500, headers, body: JSON.stringify({ error: 'Error subiendo archivo a GitHub', detail: txt }) };
 }
+
+
+const uploadJson = await uploadResp.json();
+
+
+// raw URL (public)
+const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filepath}`;
+
+
