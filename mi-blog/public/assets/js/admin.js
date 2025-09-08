@@ -177,6 +177,8 @@ class AdminPanel {
       // ✅ AQUÍ ESTÁ EL CAMBIO: enviamos JSON con el formato que espera upload-file
       this.setStatus('Subiendo archivo...', 'loading');
       const payloadFile = {
+        title: title,        // ✅ Enviamos el título del formulario
+        excerpt: excerpt,    // ✅ Enviamos la descripción del formulario
         filename: filename,
         branch: branch,
         content: pureBase64  // base64 puro sin "data:image/png;base64,"
