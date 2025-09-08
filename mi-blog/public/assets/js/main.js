@@ -183,6 +183,11 @@ class Portfolio {
     }
 
     abrirModal(postId) {
+        // Asegurar que posts sea un array
+        if (!Array.isArray(this.posts)) {
+            return;
+        }
+
         const post = this.posts.find(p => p.id === postId);
         if (!post || !this.modal) return;
 
