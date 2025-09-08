@@ -16,7 +16,7 @@ class Portfolio {
     }
 
     setupEventListeners() {
-        // Filtros de posts
+        // Filtros
         const filtros = document.querySelectorAll('.filtro-btn');
         filtros.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -24,7 +24,7 @@ class Portfolio {
             });
         });
 
-        // Búsqueda (si existe)
+        // Búsqueda
         const searchInput = document.getElementById('search-posts');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -43,14 +43,12 @@ class Portfolio {
         try {
             this.mostrarLoading(true);
             const response = await fetch('/.netlify/functions/get-posts');
-            
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-            
+            if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+this.posts = await response.json();
+console.log('Posts cargados:', this.posts);
+
             this.posts = await response.json();
             console.log('Posts cargados:', this.posts.length);
-            
         } catch (error) {
             console.error('Error cargando posts:', error);
             this.mostrarError('No se pudieron cargar los trabajos');
@@ -62,7 +60,6 @@ class Portfolio {
     renderizarPosts() {
         const container = document.getElementById('posts-container');
         const noPosts = document.getElementById('no-posts');
-        
         if (!container) return;
 
         let postsFiltrados = this.filtrarPosts();
@@ -74,61 +71,33 @@ class Portfolio {
         }
 
         if (noPosts) noPosts.style.display = 'none';
-
         container.innerHTML = postsFiltrados.map(post => this.crearCardPost(post)).join('');
-        
-        // Agregar event listeners a las cards
         this.setupPostClickHandlers();
     }
 
-crearCardPost(post) {
-  const url = post.url || '';
-  const title = post.title || 'Sin título';
-  const excerpt = post.excerpt || '';
-
-  const isVideo = this.esVideo(url);
-
-  return `
-    <article class="post-card">
-      ${url
-        ? isVideo
-          ? `<video src="${url}" controls></video>`
-          : `<img src="${url}" alt="${title}">`
-        : '<p>[Sin archivo]</p>'}
-      <h3>${title}</h3>
-      <p>${excerpt}</p>
-    </article>
-  `;
-}
-
-        const esVideo = this.esVideo(post.archivo);
-        const mediaHtml = esVideo 
-            ? `<video src="${post.archivo}" poster="${post.thumbnail || ''}" preload="metadata"></video>`
-            : `<img src="${post.archivo}" alt="${post.titulo}" loading="lazy">`;
+    crearCardPost(post) {
+        const url = post.url || '';
+        const title = post.title || 'Sin título';
+        const excerpt = post.excerpt || '';
+        const isVideo = this.esVideo(url);
 
         return `
-            <article class="post-card" data-id="${post.id}" data-tipo="${post.tipo}">
-                <div class="post-media">
-                    ${mediaHtml}
-                    ${esVideo ? '<div class="play-overlay"><span class="play-icon">▶</span></div>' : ''}
-                    <div class="post-categoria">${post.categoria}</div>
-                </div>
-                <div class="post-content">
-                    <h3 class="post-titulo">${post.titulo}</h3>
-                    <p class="post-descripcion">${this.truncarTexto(post.descripcion, 100)}</p>
-                    <div class="post-meta">
-                        <span class="post-fecha">${fechaFormateada}</span>
-                        <span class="post-tipo">${post.tipo === 'video' ? '📹' : '📸'}</span>
-                    </div>
-                </div>
-            </article>
+          <article class="post-card" data-id="${post.id}">
+            ${url
+              ? isVideo
+                ? `<video src="${url}" controls></video>`
+                : `<img src="${url}" alt="${title}">`
+              : '<p>[Sin archivo]</p>'}
+            <h3>${title}</h3>
+            <p>${excerpt}</p>
+          </article>
         `;
     }
 
     setupPostClickHandlers() {
         const cards = document.querySelectorAll('.post-card');
         cards.forEach(card => {
-            card.addEventListener('click', (e) => {
+            card.addEventListener('click', () => {
                 const postId = card.dataset.id;
                 this.abrirModal(postId);
             });
@@ -136,23 +105,16 @@ crearCardPost(post) {
     }
 
     filtrarPosts() {
-        if (this.filtroActual === 'todos') {
-            return this.posts;
-        }
-        
+        if (this.filtroActual === 'todos') return this.posts;
+
         const tipoBuscado = this.filtroActual === 'fotos' ? 'imagen' : 'video';
         return this.posts.filter(post => post.tipo === tipoBuscado);
     }
 
     cambiarFiltro(nuevoFiltro) {
         this.filtroActual = nuevoFiltro;
-        
-        // Actualizar botones activos
-        document.querySelectorAll('.filtro-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        document.querySelectorAll('.filtro-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`[data-filter="${nuevoFiltro}"]`).classList.add('active');
-        
         this.renderizarPosts();
     }
 
@@ -161,10 +123,9 @@ crearCardPost(post) {
         if (!container) return;
 
         const terminoLower = termino.toLowerCase();
-        const postsFiltrados = this.posts.filter(post => 
-            post.titulo.toLowerCase().includes(terminoLower) ||
-            post.descripcion.toLowerCase().includes(terminoLower) ||
-            post.categoria.toLowerCase().includes(terminoLower)
+        const postsFiltrados = this.posts.filter(post =>
+            (post.title || '').toLowerCase().includes(terminoLower) ||
+            (post.excerpt || '').toLowerCase().includes(terminoLower)
         );
 
         container.innerHTML = postsFiltrados.map(post => this.crearCardPost(post)).join('');
@@ -174,20 +135,15 @@ crearCardPost(post) {
     setupModal() {
         this.modal = document.getElementById('modal');
         const closeBtn = document.querySelector('.close-modal');
-        
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.cerrarModal());
-        }
-        
+
+        if (closeBtn) closeBtn.addEventListener('click', () => this.cerrarModal());
+
         if (this.modal) {
             this.modal.addEventListener('click', (e) => {
-                if (e.target === this.modal) {
-                    this.cerrarModal();
-                }
+                if (e.target === this.modal) this.cerrarModal();
             });
         }
 
-        // Cerrar modal con ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.modal && this.modal.style.display === 'block') {
                 this.cerrarModal();
@@ -196,10 +152,7 @@ crearCardPost(post) {
     }
 
     abrirModal(postId) {
-        // Asegurar que posts sea un array
-        if (!Array.isArray(this.posts)) {
-            return;
-        }
+        if (!Array.isArray(this.posts)) return;
 
         const post = this.posts.find(p => p.id === postId);
         if (!post || !this.modal) return;
@@ -209,19 +162,17 @@ crearCardPost(post) {
         const modalDescription = document.getElementById('modal-description');
         const modalDate = document.getElementById('modal-date');
 
-        const esVideo = this.esVideo(post.archivo);
-        const fechaFormateada = new Date(post.fecha).toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        const esVideo = this.esVideo(post.url);
+        const fechaFormateada = post.fecha
+            ? new Date(post.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
+            : '';
 
-        modalMedia.innerHTML = esVideo 
-            ? `<video src="${post.archivo}" controls autoplay muted></video>`
-            : `<img src="${post.archivo}" alt="${post.titulo}">`;
+        modalMedia.innerHTML = esVideo
+            ? `<video src="${post.url}" controls autoplay muted></video>`
+            : `<img src="${post.url}" alt="${post.title}">`;
 
-        modalTitle.textContent = post.titulo;
-        modalDescription.textContent = post.descripcion;
+        modalTitle.textContent = post.title;
+        modalDescription.textContent = post.excerpt;
         modalDate.textContent = fechaFormateada;
 
         this.modal.style.display = 'block';
@@ -232,32 +183,27 @@ crearCardPost(post) {
         if (this.modal) {
             this.modal.style.display = 'none';
             document.body.style.overflow = 'auto';
-            
-            // Pausar video si hay uno
             const video = this.modal.querySelector('video');
-            if (video) {
-                video.pause();
-            }
+            if (video) video.pause();
         }
     }
 
     async manejarFormularioContacto(e) {
         e.preventDefault();
-        
         const formData = new FormData(e.target);
         const statusDiv = document.getElementById('form-status');
-        
+
         try {
             statusDiv.style.display = 'block';
             statusDiv.className = 'form-status loading';
             statusDiv.innerHTML = '<p>Enviando mensaje...</p>';
-            
+
             const response = await fetch('/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(formData).toString()
             });
-            
+
             if (response.ok) {
                 statusDiv.className = 'form-status success';
                 statusDiv.innerHTML = '<p>✅ ¡Mensaje enviado! Te contactaré pronto.</p>';
@@ -265,7 +211,6 @@ crearCardPost(post) {
             } else {
                 throw new Error('Error en el envío');
             }
-            
         } catch (error) {
             statusDiv.className = 'form-status error';
             statusDiv.innerHTML = '<p>❌ Error al enviar el mensaje. Intenta por WhatsApp.</p>';
@@ -274,9 +219,11 @@ crearCardPost(post) {
 
     // Utilidades
     esVideo(archivo) {
-        const extension = archivo.split('.').pop().toLowerCase();
-        return ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(extension);
-    }
+    if (!archivo || typeof archivo !== 'string' || !archivo.includes('.')) return false;
+    const extension = archivo.split('.').pop().toLowerCase();
+    return ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(extension);
+}
+}
 
     truncarTexto(texto, limite) {
         if (texto.length <= limite) return texto;
@@ -285,9 +232,7 @@ crearCardPost(post) {
 
     mostrarLoading(mostrar) {
         const loading = document.getElementById('loading');
-        if (loading) {
-            loading.style.display = mostrar ? 'block' : 'none';
-        }
+        if (loading) loading.style.display = mostrar ? 'block' : 'none';
     }
 
     mostrarError(mensaje) {
@@ -303,23 +248,25 @@ crearCardPost(post) {
     }
 }
 
-// Inicializar cuando se carga la página
+// Inicializar
 document.addEventListener('DOMContentLoaded', () => {
-    new Portfolio();
+    window.portfolio = new Portfolio();
 });
 
-// Utilidades globales
+// Compartir
 window.compartirTrabajo = function(postId) {
+    const post = portfolio.posts.find(p => p.id === postId);
+    if (!post) return;
+
     if (navigator.share) {
-        const post = portfolio.posts.find(p => p.id === postId);
         navigator.share({
-            title: post.titulo,
-            text: post.descripcion,
+            title: post.title,
+            text: post.excerpt,
             url: window.location.href
         });
     } else {
-        // Fallback para navegadores que no soportan Web Share API
         navigator.clipboard.writeText(window.location.href);
         alert('¡Enlace copiado al portapapeles!');
     }
 };
+
