@@ -1,11 +1,7 @@
 // netlify/functions/upload-post.js
-// Función para crear nuevas publicaciones
-
-const fs = require('fs').promises;
-const path = require('path');
+// Actualiza posts.json via GitHub API
 
 exports.handler = async (event, context) => {
-    // Manejar CORS
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -13,14 +9,9 @@ exports.handler = async (event, context) => {
     };
 
     if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers,
-            body: ''
-        };
+        return { statusCode: 200, headers, body: '' };
     }
 
-    // Solo permitir POST
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -30,7 +21,6 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // Parsear datos del post
         const postData = JSON.parse(event.body);
         
         // Validar campos requeridos
@@ -40,110 +30,153 @@ exports.handler = async (event, context) => {
                 return {
                     statusCode: 400,
                     headers,
-                    body: JSON.stringify({ 
-                        error: `Campo requerido faltante: ${campo}` 
-                    })
+                    body: JSON.stringify({ error: `Campo faltante: ${campo}` })
                 };
             }
         }
 
-        // Validar longitud de campos
-        if (postData.titulo.length > 100) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'El título no puede exceder 100 caracteres' })
-            };
-        }
-
-        if (postData.descripcion.length > 500) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'La descripción no puede exceder 500 caracteres' })
-            };
-        }
-
-        // Generar ID único
-        const postId = generateId();
-        
-        // Crear objeto del post
+        // Generar nuevo post
         const nuevoPost = {
-            id: postId,
+            id: generateId(),
             titulo: postData.titulo.trim(),
             descripcion: postData.descripcion.trim(),
             categoria: postData.categoria,
             archivo: postData.archivo,
             tipo: postData.tipo,
-            fecha: postData.fecha || new Date().toISOString(),
+            fecha: new Date().toISOString(),
             thumbnail: postData.thumbnail || null
         };
 
-        // Leer posts existentes
-        const postsPath = path.join(process.cwd(), 'data', 'posts.json');
-        let posts = [];
+        // Obtener posts actuales desde GitHub
+        const currentPosts = await obtenerPostsDesdeGitHub();
         
-        try {
-            const contenido = await fs.readFile(postsPath, 'utf8');
-            posts = JSON.parse(contenido);
-            
-            // Asegurar que posts sea un array
-            if (!Array.isArray(posts)) {
-                posts = [];
-            }
-        } catch (error) {
-            // Si no existe el archivo o está corrupto, crear array vacío
-            console.log('Creando nuevo archivo posts.json');
-            posts = [];
+        // Agregar nuevo post al inicio
+        currentPosts.unshift(nuevoPost);
+        
+        // Limitar a 100 posts
+        if (currentPosts.length > 100) {
+            currentPosts.length = 100;
         }
 
-        // Agregar nuevo post al inicio (más reciente primero)
-        posts.unshift(nuevoPost);
-
-        // Limitar a máximo 100 posts para evitar que crezca indefinidamente
-        if (posts.length > 100) {
-            posts = posts.slice(0, 100);
-        }
-
-        // Asegurar que el directorio existe
-        const dataDir = path.join(process.cwd(), 'data');
-        try {
-            await fs.mkdir(dataDir, { recursive: true });
-        } catch (error) {
-            // Directorio ya existe
-        }
-
-        // Guardar posts actualizados
-        await fs.writeFile(postsPath, JSON.stringify(posts, null, 2));
+        // Actualizar archivo en GitHub
+        await actualizarPostsEnGitHub(currentPosts);
 
         return {
             statusCode: 201,
             headers,
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 success: true,
-                id: postId,
-                post: nuevoPost,
-                message: 'Post creado exitosamente'
+                id: nuevoPost.id,
+                message: 'Post creado y actualizado en GitHub'
             })
         };
 
     } catch (error) {
-        console.error('Error al crear post:', error);
-        
+        console.error('Error:', error);
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ 
-                error: 'Error interno del servidor',
-                details: process.env.NODE_ENV === 'development' ? error.message : 'Error procesando solicitud'
+            body: JSON.stringify({
+                error: 'Error interno',
+                details: error.message
             })
         };
     }
 };
 
-// Función para generar ID único
+// Función para obtener posts desde GitHub
+async function obtenerPostsDesdeGitHub() {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const REPO_OWNER = process.env.GITHUB_OWNER; // tu-usuario
+    const REPO_NAME = process.env.GITHUB_REPO;   // nombre-repo
+    
+    if (!GITHUB_TOKEN || !REPO_OWNER || !REPO_NAME) {
+        throw new Error('Faltan variables de entorno de GitHub');
+    }
+
+    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/data/posts.json`;
+    
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                // Archivo no existe, devolver array vacío
+                return [];
+            }
+            throw new Error(`GitHub API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const content = Buffer.from(data.content, 'base64').toString();
+        return JSON.parse(content);
+        
+    } catch (error) {
+        console.log('Error obteniendo posts, devolviendo array vacío:', error.message);
+        return [];
+    }
+}
+
+// Función para actualizar posts en GitHub
+async function actualizarPostsEnGitHub(posts) {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const REPO_OWNER = process.env.GITHUB_OWNER;
+    const REPO_NAME = process.env.GITHUB_REPO;
+    
+    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/data/posts.json`;
+    
+    // Primero obtener el SHA actual del archivo
+    let sha = null;
+    try {
+        const currentFile = await fetch(url, {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        
+        if (currentFile.ok) {
+            const fileData = await currentFile.json();
+            sha = fileData.sha;
+        }
+    } catch (error) {
+        // Archivo no existe, sha será null
+    }
+
+    // Actualizar o crear archivo
+    const content = JSON.stringify(posts, null, 2);
+    const encodedContent = Buffer.from(content).toString('base64');
+
+    const body = {
+        message: `Agregar nuevo post: ${posts[0]?.titulo || 'Sin título'}`,
+        content: encodedContent,
+        ...(sha && { sha }) // Solo incluir SHA si existe
+    };
+
+    const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `token ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Error actualizando GitHub: ${response.status} - ${error}`);
+    }
+
+    return await response.json();
+}
+
+// Generar ID único
 function generateId() {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    return `post_${timestamp}_${random}`;
+    return `post_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }

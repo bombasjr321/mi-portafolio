@@ -297,6 +297,11 @@ class AdminPanel {
         const container = document.getElementById('admin-posts-list');
         if (!container) return;
 
+        // Asegurar que posts sea un array
+        if (!Array.isArray(this.posts)) {
+            return;
+        }
+
         const terminoLower = termino.toLowerCase();
         const postsFiltrados = this.posts.filter(post => 
             post.titulo.toLowerCase().includes(terminoLower) ||
