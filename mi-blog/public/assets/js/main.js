@@ -81,12 +81,25 @@ class Portfolio {
         this.setupPostClickHandlers();
     }
 
-    crearCardPost(post) {
-        const fechaFormateada = new Date(post.fecha).toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+crearCardPost(post) {
+  const url = post.url || '';
+  const title = post.title || 'Sin título';
+  const excerpt = post.excerpt || '';
+
+  const isVideo = this.esVideo(url);
+
+  return `
+    <article class="post-card">
+      ${url
+        ? isVideo
+          ? `<video src="${url}" controls></video>`
+          : `<img src="${url}" alt="${title}">`
+        : '<p>[Sin archivo]</p>'}
+      <h3>${title}</h3>
+      <p>${excerpt}</p>
+    </article>
+  `;
+}
 
         const esVideo = this.esVideo(post.archivo);
         const mediaHtml = esVideo 
