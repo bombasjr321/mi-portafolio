@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portafolio de Trabajos</title>
+    <meta name="description" content="Mira mis trabajos realizados con calidad y dedicación">
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Mi Portafolio</h1>
+            <nav>
+                <ul>
+                    <li><a href="#inicio">Inicio</a></li>
+                    <li><a href="#trabajos">Trabajos</a></li>
+                    <li><a href="contacto.html">Contacto</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section id="inicio" class="hero">
+            <div class="container">
+                <h2>Bienvenido a mi portafolio</h2>
+                <p>Aquí puedes ver todos mis trabajos realizados con calidad y dedicación</p>
+            </div>
+        </section>
+
+        <section id="trabajos" class="trabajos-section">
+            <div class="container">
+                <h2>Mis Trabajos</h2>
+                
+                <div class="filtros">
+                    <button class="filtro-btn active" data-filter="todos">Todos</button>
+                    <button class="filtro-btn" data-filter="fotos">Fotos</button>
+                    <button class="filtro-btn" data-filter="videos">Videos</button>
+                </div>
+
+                <div id="loading" class="loading">
+                    <p>Cargando trabajos...</p>
+                </div>
+
+                <div id="posts-container" class="posts-grid">
+                    <!-- Los posts se cargarán aquí dinámicamente -->
+                </div>
+
+                <div id="no-posts" class="no-posts" style="display: none;">
+                    <p>Aún no hay trabajos publicados</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Mi Portafolio. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- Modal para ver contenido ampliado -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="modal-media"></div>
+            <div class="modal-info">
+                <h3 id="modal-title"></h3>
+                <p id="modal-description"></p>
+                <p class="modal-date" id="modal-date"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/main.js"></script>
+</body>
+</html>

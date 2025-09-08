@@ -1,0 +1,108 @@
+# netlify.toml - Configuración de Netlify
+
+[build]
+  # Directorio donde están los archivos a publicar
+  publish = "public"
+  
+  # Comando de build (si fuera necesario)
+  command = "echo 'No build needed'"
+
+# Configuración de Functions
+[functions]
+  # Directorio donde están las Netlify Functions
+  directory = "netlify/functions"
+
+# Configuración de formularios
+[build.processing]
+  skip_processing = false
+
+# Headers personalizados
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Seguridad básica
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Cache para assets estáticos
+    Cache-Control = "public, max-age=31536000"
+
+# Headers específicos para archivos de media
+[[headers]]
+  for = "/media/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"  # 1 semana
+
+# Headers para las functions
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    # CORS para las functions
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
+# Redirecciones
+[[redirects]]
+  # Redirigir admin sin .html
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  # Redirigir contacto sin .html
+  from = "/contacto"
+  to = "/contacto.html"
+  status = 200
+
+# Configuración de formularios Netlify
+[build.environment]
+  # Variables de entorno si fueran necesarias
+  NODE_ENV = "production"
+
+# Configuración para subida de archivos grandes
+[build.processing.css]
+  bundle = false
+  minify = false
+
+[build.processing.js]
+  bundle = false
+  minify = false
+
+[build.processing.html]
+  pretty_urls = true
+
+# Plugin para manejar archivos grandes (si es necesario)
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Límites de funciones
+[functions.upload-file]
+  # Timeout de 30 segundos para subida de archivos
+  timeout = 30
+
+[functions.get-posts]
+  # Cache de 5 minutos para get-posts
+  timeout = 10
+
+# Configuración de edge functions (opcional)
+# [[edge_functions]]
+#   function = "geolocation"
+#   path = "/api/location"
+
+# Configuración específica de desarrollo
+[context.dev]
+  command = "echo 'Development mode'"
+
+# Configuración específica de producción
+[context.production]
+  command = "echo 'Production build'"
+
+# Variables de entorno por contexto
+[context.production.environment]
+  NODE_ENV = "production"
+  
+[context.dev.environment]
+  NODE_ENV = "development"

@@ -1,0 +1,62 @@
+{
+  "name": "mi-portafolio",
+  "version": "1.0.0",
+  "description": "Portafolio profesional para mostrar trabajos y servicios",
+  "main": "index.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build process needed'",
+    "deploy": "netlify deploy --prod",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'No linting configured'",
+    "start": "netlify dev"
+  },
+  "keywords": [
+    "portafolio",
+    "trabajos",
+    "servicios",
+    "electricidad",
+    "plomeria",
+    "carpinteria",
+    "construccion",
+    "netlify"
+  ],
+  "author": {
+    "name": "Tu Nombre",
+    "email": "mitrabajos@email.com",
+    "url": "https://mi-portafolio.netlify.app"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tu-usuario/mi-portafolio.git"
+  },
+  "homepage": "https://mi-portafolio.netlify.app",
+  "dependencies": {
+    "lambda-multipart-parser": "^1.0.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "netlify": {
+    "functions": {
+      "directory": "netlify/functions",
+      "node_bundler": "esbuild"
+    }
+  },
+  "private": false,
+  "funding": {
+    "type": "individual",
+    "url": "https://paypal.me/tu-usuario"
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "sitio": {
+    "nombre": "Mi Portafolio",
+    "descripcion": "Portafolio profesional de trabajos y servicios",
+    "autor": "Tu Nombre",
+    "email": "mitrabajos@email.com",
+    "telefono": "+57 300 123 4567",
+    "whatsapp": "573001234567",
+    "ubicacion": {
+      "ciudad": "Valledupar",
+      "departamento": "Cesar",
+      "pais": "Colombia"
+    },
+    "horarios": {
+      "lunes_viernes": "7:00 AM - 6:00 PM",
+      "sabados": "7:00 AM - 12:00 PM",
+      "domingos": "Cerrado"
+    }
+  },
+  "servicios": {
+    "categorias": [
+      {
+        "id": "electricidad",
+        "nombre": "Electricidad",
+        "descripcion": "Instalaciones eléctricas, reparaciones y mantenimiento",
+        "icono": "⚡"
+      },
+      {
+        "id": "plomeria",
+        "nombre": "Plomería",
+        "descripcion": "Instalaciones sanitarias, reparaciones de tuberías",
+        "icono": "🔧"
+      },
+      {
+        "id": "carpinteria",
+        "nombre": "Carpintería",
+        "descripcion": "Muebles a medida, reparaciones en madera",
+        "icono": "🪵"
+      },
+      {
+        "id": "pintura",
+        "nombre": "Pintura",
+        "descripcion": "Pintura interior y exterior, acabados decorativos",
+        "icono": "🎨"
+      },
+      {
+        "id": "construccion",
+        "nombre": "Construcción",
+        "descripción": "Obras civiles, ampliaciones, remodelaciones",
+        "icono": "🏗️"
+      },
+      {
+        "id": "otros",
+        "nombre": "Otros",
+        "descripcion": "Servicios generales y mantenimiento",
+        "icono": "🛠️"
+      }
+    ]
+  },
+  "configuracion": {
+    "posts_por_pagina": 12,
+    "tamaño_maximo_archivo": 52428800,
+    "formatos_imagen": ["jpg", "jpeg", "png", "webp", "gif"],
+    "formatos_video": ["mp4", "mov", "avi", "webm"],
+    "generar_thumbnails": true,
+    "calidad_thumbnail": 80,
+    "cache_duracion": 300
+  },
+  "seo": {
+    "titulo_principal": "Mi Portafolio - Trabajos Profesionales",
+    "descripcion_meta": "Mira mis trabajos realizados con calidad y dedicación. Servicios de electricidad, plomería, carpintería y más en Valledupar, Cesar.",
+    "palabras_clave": [
+      "electricista Valledupar",
+      "plomero Cesar",
+      "carpintero profesional",
+      "servicios técnicos",
+      "reparaciones domiciliarias",
+      "trabajos de calidad"
+    ],
+    "imagen_social": "/assets/images/portafolio-social.jpg"
+  },
+  "redes_sociales": {
+    "whatsapp": {
+      "activo": true,
+      "numero": "573001234567",
+      "mensaje_default": "Hola, me interesa solicitar un presupuesto"
+    },
+    "facebook": {
+      "activo": false,
+      "url": ""
+    },
+    "instagram": {
+      "activo": false,
+      "url": ""
+    }
+  },
+  "caracteristicas": [
+    {
+      "titulo": "Experiencia Comprobada",
+      "descripcion": "Mira mis trabajos anteriores en la galería",
+      "icono": "✅"
+    },
+    {
+      "titulo": "Respuesta Rápida",
+      "descripcion": "Te contacto en menos de 2 horas",
+      "icono": "⚡"
+    },
+    {
+      "titulo": "Precios Justos",
+      "descripcion": "Presupuestos transparentes y sin sorpresas",
+      "icono": "💰"
+    },
+    {
+      "titulo": "Trabajo de Calidad",
+      "descripcion": "Garantía en todos mis trabajos",
+      "icono": "🔧"
+    }
+  ],
+  "version": "1.0.0",
+  "ultima_actualizacion": "2025-09-07T18:00:00.000Z"
+}

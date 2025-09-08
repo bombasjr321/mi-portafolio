@@ -1,0 +1,32 @@
+[
+  {
+    "id": "post_1725742800000_abc123",
+    "titulo": "Instalación eléctrica completa",
+    "descripcion": "Instalación eléctrica completa en casa de 3 habitaciones. Incluye tablero principal, tomas corrientes, iluminación LED y sistema de seguridad. Trabajo realizado siguiendo todas las normas de seguridad.",
+    "categoria": "electricidad",
+    "archivo": "/media/trabajos/fotos/1725742800000_abc123.jpg",
+    "tipo": "imagen",
+    "fecha": "2025-09-07T18:00:00.000Z",
+    "thumbnail": null
+  },
+  {
+    "id": "post_1725742600000_def456",
+    "titulo": "Reparación de tubería principal",
+    "descripcion": "Reparación de rotura en tubería principal de agua potable. Incluye excavación, reemplazo de sección dañada y pruebas de presión. Sin daños adicionales a la estructura.",
+    "categoria": "plomeria",
+    "archivo": "/media/trabajos/videos/1725742600000_def456.mp4",
+    "tipo": "video",
+    "fecha": "2025-09-07T17:30:00.000Z",
+    "thumbnail": "/media/thumbnails/1725742600000_def456_thumb.jpg"
+  },
+  {
+    "id": "post_1725742400000_ghi789",
+    "titulo": "Mueble de cocina a medida",
+    "descripcion": "Diseño y construcción de mueble de cocina en madera de cedro. Incluye cajones con rieles de alta calidad, puertas con bisagras suaves y acabado en poliuretano mate.",
+    "categoria": "carpinteria",
+    "archivo": "/media/trabajos/fotos/1725742400000_ghi789.jpg",
+    "tipo": "imagen",
+    "fecha": "2025-09-07T17:00:00.000Z",
+    "thumbnail": null
+  }
+]

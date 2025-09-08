@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacto - Portafolio</title>
+    <meta name="description" content="Ponte en contacto conmigo para solicitar presupuestos y servicios">
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Mi Portafolio</h1>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Inicio</a></li>
+                    <li><a href="index.html#trabajos">Trabajos</a></li>
+                    <li><a href="#contacto" class="active">Contacto</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section id="contacto" class="contacto-section">
+            <div class="container">
+                <h2>¡Hablemos!</h2>
+                <p class="intro-text">¿Te gustó alguno de mis trabajos? Ponte en contacto conmigo para solicitar presupuestos o resolver cualquier duda.</p>
+
+                <div class="contacto-content">
+                    <div class="contacto-info">
+                        <h3>Información de Contacto</h3>
+                        
+                        <div class="contacto-item">
+                            <div class="contacto-icon">📱</div>
+                            <div class="contacto-details">
+                                <h4>WhatsApp</h4>
+                                <a href="https://wa.me/573001234567" target="_blank" class="whatsapp-link">
+                                    +57 300 123 4567
+                                </a>
+                                <small>Click para enviar mensaje directo</small>
+                            </div>
+                        </div>
+
+                        <div class="contacto-item">
+                            <div class="contacto-icon">📧</div>
+                            <div class="contacto-details">
+                                <h4>Email</h4>
+                                <a href="mailto:mitrabajos@email.com">mitrabajos@email.com</a>
+                            </div>
+                        </div>
+
+                        <div class="contacto-item">
+                            <div class="contacto-icon">📍</div>
+                            <div class="contacto-details">
+                                <h4>Ubicación</h4>
+                                <p>Valledupar, Cesar<br>Colombia</p>
+                            </div>
+                        </div>
+
+                        <div class="contacto-item">
+                            <div class="contacto-icon">⏰</div>
+                            <div class="contacto-details">
+                                <h4>Horario de Atención</h4>
+                                <p>Lunes a Viernes: 7:00 AM - 6:00 PM<br>
+                                   Sábados: 7:00 AM - 12:00 PM</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contacto-form-container">
+                        <h3>Enviar Mensaje</h3>
+                        <p>O déjame tu mensaje aquí y te contacto lo antes posible:</p>
+                        
+                        <form id="contacto-form" class="contacto-form" netlify>
+                            <div class="form-group">
+                                <label for="nombre">Nombre completo:</label>
+                                <input type="text" id="nombre" name="nombre" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="telefono">Teléfono/WhatsApp:</label>
+                                <input type="tel" id="telefono" name="telefono" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">Email (opcional):</label>
+                                <input type="email" id="email" name="email">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tipo-trabajo">Tipo de trabajo:</label>
+                                <select id="tipo-trabajo" name="tipo-trabajo" required>
+                                    <option value="">Selecciona el tipo de trabajo</option>
+                                    <option value="electricidad">Electricidad</option>
+                                    <option value="plomeria">Plomería</option>
+                                    <option value="carpinteria">Carpintería</option>
+                                    <option value="pintura">Pintura</option>
+                                    <option value="construccion">Construcción</option>
+                                    <option value="reparaciones">Reparaciones generales</option>
+                                    <option value="presupuesto">Solicitar presupuesto</option>
+                                    <option value="consulta">Consulta general</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="mensaje">Describe tu proyecto:</label>
+                                <textarea id="mensaje" name="mensaje" required rows="5" placeholder="Cuéntame qué necesitas, ubicación, fecha aproximada, etc."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="urgente" name="urgente" value="si">
+                                    Es urgente (menos de 48 horas)
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn-primary">Enviar Mensaje</button>
+                        </form>
+
+                        <div id="form-status" class="form-status" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="cta-section">
+                    <h3>¿Por qué elegirme?</h3>
+                    <div class="caracteristicas">
+                        <div class="caracteristica">
+                            <div class="caracteristica-icon">✅</div>
+                            <h4>Experiencia Comprobada</h4>
+                            <p>Mira mis trabajos anteriores en la galería</p>
+                        </div>
+                        <div class="caracteristica">
+                            <div class="caracteristica-icon">⚡</div>
+                            <h4>Respuesta Rápida</h4>
+                            <p>Te contacto en menos de 2 horas</p>
+                        </div>
+                        <div class="caracteristica">
+                            <div class="caracteristica-icon">💰</div>
+                            <h4>Precios Justos</h4>
+                            <p>Presupuestos transparentes y sin sorpresas</p>
+                        </div>
+                        <div class="caracteristica">
+                            <div class="caracteristica-icon">🔧</div>
+                            <h4>Trabajo de Calidad</h4>
+                            <p>Garantía en todos mis trabajos</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Mi Portafolio. Todos los derechos reservados.</p>
+            <p>¿Necesitas trabajos de calidad? <a href="https://wa.me/573001234567" target="_blank">¡Contáctame por WhatsApp!</a></p>
+        </div>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+</body>
+</html>
