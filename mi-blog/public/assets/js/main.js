@@ -33,10 +33,18 @@ class Portfolio {
         }
 
         // Formulario de contacto
-        const contactForm = document.getElementById('contacto-form');
-        if (contactForm) {
-            contactForm.addEventListener('submit', this.manejarFormularioContacto.bind(this));
-        }
+        // dentro de setupEventListeners()
+const contactForm = document.getElementById('contacto-form');
+if (contactForm) {
+  // Sólo agregamos listener AJAX si el formulario NO es manejado por Netlify (data-netlify)
+  if (!contactForm.hasAttribute('data-netlify')) {
+    contactForm.addEventListener('submit', this.manejarFormularioContacto.bind(this));
+  } else {
+    // si quieres mostrar un mensaje client-side después del submit, podrías usar el evento 'submit' sin preventDefault
+    // o dejar que Netlify redirija a una 'thank-you' page configurada.
+  }
+}
+
     }
 
     async cargarPosts() {
