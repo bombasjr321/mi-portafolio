@@ -1,117 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - Portafolio</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin - Subir posts</title>
+<style>
+body{font-family:system-ui,Arial;margin:24px}
+.post-card{border:1px solid #ddd;padding:12px;margin-bottom:8px}
+</style>
 </head>
-<body class="admin-body">
-    <header class="admin-header">
-        <div class="container">
-            <h1>Panel de Administración</h1>
-            <nav>
-                <ul>
-                    <li><a href="index.html">Ver Portafolio</a></li>
-                    <li><a href="contacto.html">Contacto</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
+<body>
+<h1>Panel Admin (Ejemplo)</h1>
+<form id="upload-form">
+<div>
+<label>Título<br><input name="title" type="text"></label>
+</div>
+<div>
+<label>Descripción<br><textarea name="excerpt"></textarea></label>
+</div>
+<div>
+<label>Archivo (imagen)<br><input name="file" type="file" accept="image/*"></label>
+</div>
+<div>
+<label>Branch (opcional)<br><input name="branch" type="text" placeholder="main"></label>
+</div>
+<button type="submit">Subir</button>
+</form>
 
-    <main class="admin-main">
-        <div class="container">
-            <section class="upload-section">
-                <h2>Subir Nuevo Trabajo</h2>
-                
-                <form id="upload-form" class="upload-form">
-                    <div class="form-group">
-                        <label for="titulo">Título del trabajo:</label>
-                        <input type="text" id="titulo" name="titulo" required maxlength="100">
-                    </div>
 
-                    <div class="form-group">
-                        <label for="descripcion">Descripción:</label>
-                        <textarea id="descripcion" name="descripcion" required maxlength="500" rows="4" placeholder="Describe brevemente el trabajo realizado..."></textarea>
-                        <small class="char-counter">0/500 caracteres</small>
-                    </div>
+<hr>
+<section id="posts-list"></section>
 
-                    <div class="form-group">
-                        <label for="archivo">Subir archivo (foto o video):</label>
-                        <input type="file" id="archivo" name="archivo" accept="image/*,video/*" required>
-                        <small class="file-info">Formatos: JPG, PNG, MP4, MOV. Máximo 50MB</small>
-                    </div>
 
-                    <div class="form-group">
-                        <label for="categoria">Categoría:</label>
-                        <select id="categoria" name="categoria" required>
-                            <option value="">Selecciona una categoría</option>
-                            <option value="electricidad">Electricidad</option>
-                            <option value="plomeria">Plomería</option>
-                            <option value="carpinteria">Carpintería</option>
-                            <option value="pintura">Pintura</option>
-                            <option value="construccion">Construcción</option>
-                            <option value="otros">Otros</option>
-                        </select>
-                    </div>
-
-                    <div class="preview-area" id="preview-area" style="display: none;">
-                        <h3>Vista previa:</h3>
-                        <div id="preview-content"></div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="button" id="preview-btn" class="btn-secondary">Vista Previa</button>
-                        <button type="submit" id="submit-btn" class="btn-primary">Publicar Trabajo</button>
-                    </div>
-                </form>
-
-                <div id="upload-status" class="upload-status" style="display: none;">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill"></div>
-                    </div>
-                    <p id="status-message">Subiendo archivo...</p>
-                </div>
-            </section>
-
-            <section class="posts-management">
-                <h2>Trabajos Publicados</h2>
-                
-                <div class="search-bar">
-                    <input type="text" id="search-posts" placeholder="Buscar trabajos...">
-                </div>
-
-                <div id="admin-posts-list" class="admin-posts-list">
-                    <!-- Lista de posts para administrar -->
-                </div>
-            </section>
-        </div>
-    </main>
-
-    <!-- Modal de confirmación para eliminar -->
-    <div id="delete-modal" class="modal">
-        <div class="modal-content">
-            <h3>¿Eliminar trabajo?</h3>
-            <p>Esta acción no se puede deshacer.</p>
-            <div class="modal-actions">
-                <button id="cancel-delete" class="btn-secondary">Cancelar</button>
-                <button id="confirm-delete" class="btn-danger">Eliminar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de éxito -->
-    <div id="success-modal" class="modal">
-        <div class="modal-content">
-            <h3>¡Trabajo publicado!</h3>
-            <p>Tu trabajo se ha subido correctamente y ya está visible en el portafolio.</p>
-            <div class="modal-actions">
-                <button id="close-success" class="btn-primary">Cerrar</button>
-                <button id="view-portfolio" class="btn-secondary">Ver Portafolio</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="assets/js/admin.js"></script>
+<!-- Carga el JS del admin (asegúrate que la ruta sea correcta) -->
+<script src="/assets/js/admin.js" defer></script>
 </body>
 </html>
