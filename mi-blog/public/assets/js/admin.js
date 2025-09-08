@@ -1,78 +1,88 @@
 // ==========================
-const titleInput = form.querySelector('input[name=title]');
-const excerptInput = form.querySelector('textarea[name=excerpt]');
-
-
-if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-return alert('Selecciona un archivo');
+// admin.js (FRONTEND) - Copia únicamente esta sección al archivo público de tu sitio
+// ==========================
+class AdminPanel {
+constructor() {
+this.posts = [];
+this.container = document.querySelector('#posts-list');
+this.uploadForm = document.querySelector('#upload-form');
 }
 
 
-const file = fileInput.files[0];
-const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-
-
-const base64 = await this.readFileAsBase64(file);
-// base64 includes prefix like "data:...;base64,AAA..." -> strip prefix
-const commaIndex = base64.indexOf(',');
-const pureBase64 = commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64;
-
-
-const payload = {
-filename,
-content: pureBase64,
-title: titleInput ? titleInput.value : filename,
-excerpt: excerptInput ? excerptInput.value : '',
-branch: (form.querySelector('input[name=branch]') && form.querySelector('input[name=branch]').value) || undefined
-};
-
-
-console.log('Enviando payload (sin content visible):', { filename: payload.filename, title: payload.title, excerpt: payload.excerpt, branch: payload.branch });
-
-
-const resp = await fetch('/.netlify/functions/upload-file', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(payload)
-});
-
-
-if (!resp.ok) {
-const txt = await resp.text();
-throw new Error(`Error al subir el archivo: ${resp.status} ${txt}`);
-}
-
-
-const body = await resp.json();
-console.log('Subida completada:', body);
-alert('Subida correcta: ' + body.url);
-
-
-// actualizar UI
-this.posts.unshift({ title: payload.title, url: body.url, excerpt: payload.excerpt, id: body.postId || payload.filename });
+async init() {
+try {
+this.attachListeners();
+await this.cargarPosts();
 this.renderizarPostsAdmin();
+} catch (err) {
+console.error('Error en init:', err);
+}
+}
+
+
+attachListeners() {
+if (this.uploadForm) {
+this.uploadForm.addEventListener('submit', (e) => this.manejarSubida(e));
+}
+}
+
+
+async cargarPosts() {
+try {
+const response = await fetch('/.netlify/functions/get-posts');
+if (!response.ok) {
+const text = await response.text();
+throw new Error(`Error al cargar posts: ${response.status} ${text}`);
+}
+
+
+const data = await response.json();
+if (Array.isArray(data)) {
+this.posts = data;
+} else if (Array.isArray(data.posts)) {
+this.posts = data.posts;
+} else {
+console.warn('Formato inesperado de get-posts, asignando array vacío', data);
+this.posts = [];
+}
 
 
 } catch (err) {
-console.error('Error en la subida:', err);
-alert('Error en la subida: ' + err.message);
+console.error('Error en cargarPosts:', err);
+this.posts = [];
 }
 }
 
 
-readFileAsBase64(file) {
-return new Promise((resolve, reject) => {
-const reader = new FileReader();
-reader.onload = () => resolve(reader.result);
-reader.onerror = reject;
-reader.readAsDataURL(file);
-});
-}
+renderizarPostsAdmin() {
+if (!this.container) return console.warn('No se encontró el contenedor #posts-list');
+
+
+if (!Array.isArray(this.posts)) this.posts = [];
+
+
+const html = this.posts.map(post => {
+const title = post.title || post.titulo || 'Sin título';
+const slug = post.slug || post.id || '';
+const img = post.url || post.image || post.img || '';
+const excerpt = post.excerpt || post.descripcion || '';
+
+
+return `
+<article class="post-card">
+${img ? `<img src="${img}" alt="${title}" onerror="this.style.display='none'">` : ''}
+<h3>${title}</h3>
+<p>${excerpt}</p>
+<a href="/admin/editar.html?slug=${encodeURIComponent(slug)}">Editar</a>
+</article>
+`;
+}).join('');
+
+
+this.container.innerHTML = html || '<p>No hay publicaciones.</p>';
 }
 
 
-// Inicializar
-document.addEventListener('DOMContentLoaded', () => {
-const admin = new AdminPanel();
-admin.init();
-});
+async manejarSubida(event) {
+event.preventDefault();
+}
