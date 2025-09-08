@@ -75,8 +75,6 @@
   pretty_urls = true
 
 # Plugin para manejar archivos grandes (si es necesario)
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
 
 # Límites de funciones
 [functions.upload-file]
