@@ -7,52 +7,202 @@
     <meta name="description" content="Mira mis trabajos realizados con calidad y dedicación">
     <style>
 /* CSS para la estructura HTML actual (sin wrappers) */
+/* ===== CONTENEDOR PRINCIPAL ===== */
+#posts-container {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 2rem !important;
+  padding: 2rem 0 !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+}
+
+/* ===== TARJETAS DE POSTS ===== */
 .post-card {
   background: white !important;
-  border-radius: 12px !important;
+  border-radius: 16px !important;
   overflow: hidden !important;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.4s ease !important;
   cursor: pointer !important;
   display: flex !important;
   flex-direction: column !important;
-  min-height: 300px !important;
-  padding: 0 !important;
-}
-
-.post-card img {
-  width: 100% !important;
-  height: 200px !important;
-  object-fit: cover !important;
-  flex-shrink: 0 !important;
-}
-
-.post-card h3 {
-  font-size: 1.1rem !important;
-  font-weight: 600 !important;
-  margin: 1rem 1rem 0.5rem 1rem !important;
-  color: #2d3748 !important;
-  line-height: 1.4 !important;
-}
-
-.post-card p {
-  color: #718096 !important;
-  margin: 0 1rem 1rem 1rem !important;
-  line-height: 1.6 !important;
-  font-size: 0.9rem !important;
-  flex-grow: 1 !important;
+  min-height: 420px !important;
+  max-height: 500px !important;
+  position: relative !important;
 }
 
 .post-card:hover {
-  transform: translateY(-5px) !important;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-8px) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12) !important;
 }
 
-.post-card:hover img {
-  transform: scale(1.05) !important;
+/* ===== IMAGEN/VIDEO ===== */
+.post-card img,
+.post-card video {
+  width: 100% !important;
+  height: 260px !important; /* Altura más generosa */
+  object-fit: cover !important;
+  object-position: center !important; /* Centra la imagen en lugar de cortarla por arriba */
+  flex-shrink: 0 !important;
+  transition: transform 0.4s ease !important;
+  background: #f8f9fa !important;
 }
-</style>
-<link rel="stylesheet" href="assets/css/styles.css">
+
+.post-card:hover img,
+.post-card:hover video {
+  transform: scale(1.03) !important; /* Zoom más sutil */
+}
+
+/* ===== CONTENIDO DE TEXTO ===== */
+.post-card h3 {
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  margin: 1.5rem 1.5rem 0.8rem 1.5rem !important;
+  color: #1a202c !important;
+  line-height: 1.3 !important;
+  /* Limitar título a 2 líneas para mantener consistencia */
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  min-height: 2.6em !important; /* Reserva espacio para 2 líneas */
+}
+
+.post-card p {
+  color: #4a5568 !important;
+  margin: 0 1.5rem 1.5rem 1.5rem !important;
+  line-height: 1.6 !important;
+  font-size: 0.95rem !important;
+  flex-grow: 1 !important;
+  /* Limitar descripción para evitar desbordamiento */
+  display: -webkit-box !important;
+  -webkit-line-clamp: 4 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* ===== INDICADOR DE TIPO DE ARCHIVO ===== */
+.post-card::after {
+  content: '📸' !important;
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  padding: 8px 10px !important;
+  border-radius: 20px !important;
+  font-size: 16px !important;
+  opacity: 0.9 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.post-card:hover::after {
+  opacity: 1 !important;
+}
+
+/* Para videos, cambiar el icono */
+.post-card[data-video="true"]::after {
+  content: '🎥' !important;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 1024px) {
+  #posts-container {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
+    gap: 1.5rem !important;
+    padding: 1.5rem 1rem !important;
+  }
+  
+  .post-card {
+    min-height: 380px !important;
+    max-height: 460px !important;
+  }
+  
+  .post-card img,
+  .post-card video {
+    height: 220px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #posts-container {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 1.5rem !important;
+    padding: 1rem !important;
+  }
+  
+  .post-card {
+    min-height: 360px !important;
+    max-height: 440px !important;
+  }
+  
+  .post-card img,
+  .post-card video {
+    height: 200px !important;
+  }
+  
+  .post-card h3 {
+    font-size: 1.1rem !important;
+    margin: 1.2rem 1.2rem 0.6rem 1.2rem !important;
+  }
+  
+  .post-card p {
+    margin: 0 1.2rem 1.2rem 1.2rem !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #posts-container {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  .post-card {
+    min-height: 340px !important;
+    max-height: 420px !important;
+  }
+  
+  .post-card img,
+  .post-card video {
+    height: 180px !important;
+  }
+  
+  .post-card h3 {
+    font-size: 1rem !important;
+    margin: 1rem 1rem 0.5rem 1rem !important;
+  }
+  
+  .post-card p {
+    margin: 0 1rem 1rem 1rem !important;
+    font-size: 0.85rem !important;
+    -webkit-line-clamp: 3 !important;
+  }
+}
+
+/* ===== EFECTOS ADICIONALES ===== */
+.post-card {
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.post-card:hover {
+  border-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Loading placeholder para imágenes */
+.post-card img[src=""],
+.post-card img:not([src]) {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+  background-size: 200% 100% !important;
+  animation: shimmer 1.5s infinite !important;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}<link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
     <header>
