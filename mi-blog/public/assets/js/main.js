@@ -1,4 +1,4 @@
-// main.js - JavaScript principal del portafolio (VERSIÓN NORMALIZADA)
+// main.js - JavaScript principal del portafolio (VERSIÓN NORMALIZADA) - MODIFICADO
 class Portfolio {
     constructor() {
         this.posts = [];
@@ -39,8 +39,7 @@ class Portfolio {
             if (!contactForm.hasAttribute('data-netlify') && !contactForm.hasAttribute('netlify')) {
                 contactForm.addEventListener('submit', this.manejarFormularioContacto.bind(this));
             } else {
-                // si quieres manejar client-side mostrar mensajes, podríamos suscribirnos sin preventDefault
-                // por ahora no interferimos con Netlify.
+                // no interferimos con Netlify.
             }
         }
     }
@@ -57,8 +56,6 @@ class Portfolio {
             const arr = Array.isArray(raw) ? raw : (Array.isArray(raw.posts) ? raw.posts : []);
             this.posts = arr.map(p => this._normalizePost(p));
             console.log('Posts cargados:', this.posts.length);
-            // debug opcional:
-            // console.log('Posts sample:', this.posts.slice(0,3));
         } catch (error) {
             console.error('Error cargando posts:', error);
             this.mostrarError('No se pudieron cargar los trabajos');
@@ -68,9 +65,6 @@ class Portfolio {
         }
     }
 
-    // Normaliza cualquiera de estos formatos:
-    // { titulo, descripcion, archivo, tipo, fecha, thumbnail, categoria, id }
-    // { title, excerpt, url, type, date, thumbnail, category, id }
     _normalizePost(p) {
         const titulo = p.titulo || p.title || p.name || '';
         const descripcion = p.descripcion || p.excerpt || p.description || '';
@@ -158,15 +152,40 @@ class Portfolio {
             return `<iframe src="https://www.youtube.com/embed/${id}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;min-height:250px;border:0;"></iframe>`;
         }
 
-        // Video detection
+        // Video detection (tarjeta)
         const isVideo = tipo === 'video' || /\.mp4($|\?)/i.test(url) || /\.webm($|\?)/i.test(url);
         if (isVideo) {
             const poster = thumbnail ? ` poster="${thumbnail}" ` : '';
-            return `<video src="${url}" controls preload="metadata" ${poster} style="width:100%;height:100%;object-fit:cover;"></video>`;
+            // playsinline para evitar autoplay forzado en móviles; object-fit cover para tarjeta
+            return `<video src="${this._escapeHtml(url)}" controls preload="metadata" playsinline ${poster} style="width:100%;height:100%;object-fit:cover;"></video>`;
         }
 
         // Image fallback
-        return `<img src="${url}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+        return `<img src="${this._escapeHtml(url)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+    }
+
+    // Media HTML específico para modal (no recortar, usar contain, limitar altura)
+    _mediaHtmlModal(url, tipo, thumbnail) {
+        if (!url) {
+            return `<div style="width:100%;padding:2rem;text-align:center;color:#999;background:#f5f5f5;border-radius:12px">Sin archivo</div>`;
+        }
+
+        // YouTube embed
+        const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([A-Za-z0-9_-]{6,})/);
+        if (ytMatch) {
+            const id = ytMatch[1];
+            return `<iframe src="https://www.youtube.com/embed/${id}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:min(60vh,70vh);max-height:70vh;border:0;"></iframe>`;
+        }
+
+        const isVideo = tipo === 'video' || /\.mp4($|\?)/i.test(url) || /\.webm($|\?)/i.test(url);
+        if (isVideo) {
+            const poster = thumbnail ? ` poster="${thumbnail}" ` : '';
+            // playsinline, no autoplay; contain para no recortar
+            return `<video src="${this._escapeHtml(url)}" controls preload="metadata" playsinline ${poster} style="width:100%;height:auto;max-height:70vh;object-fit:contain;border-radius:12px;"></video>`;
+        }
+
+        // image
+        return `<img src="${this._escapeHtml(url)}" alt="" loading="lazy" style="width:100%;height:auto;max-height:70vh;object-fit:contain;border-radius:12px;">`;
     }
 
     setupPostClickHandlers() {
@@ -232,7 +251,6 @@ class Portfolio {
     abrirModal(postId) {
         if (!Array.isArray(this.posts)) return;
 
-        // ID es string - buscamos comparando como string
         const post = this.posts.find(p => String(p.id) === String(postId));
         if (!post || !this.modal) return;
 
@@ -241,7 +259,8 @@ class Portfolio {
         const modalDescription = document.getElementById('modal-description');
         const modalDate = document.getElementById('modal-date');
 
-        const mediaHtml = this._mediaHtml(post.archivo, post.tipo, post.thumbnail);
+        // usa la versión modal del HTML del media (contain, max-height, playsinline)
+        const mediaHtml = this._mediaHtmlModal(post.archivo, post.tipo, post.thumbnail);
         const fechaFormateada = post.fecha ? new Date(post.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
         if (modalMedia) modalMedia.innerHTML = mediaHtml;
@@ -255,10 +274,19 @@ class Portfolio {
 
     cerrarModal() {
         if (this.modal) {
+            // pausar video si existe
+            const video = this.modal.querySelector('video');
+            if (video) {
+                try { video.pause(); video.currentTime = 0; } catch (e) { /* ignore */ }
+            }
+            // limpiar iframe youtube para detener reproducción
+            const iframe = this.modal.querySelector('iframe');
+            if (iframe) {
+                try { iframe.src = ''; } catch (e) { /* ignore */ }
+            }
+
             this.modal.style.display = 'none';
             document.body.style.overflow = 'auto';
-            const video = this.modal.querySelector('video');
-            if (video) video.pause();
         }
     }
 

@@ -13,9 +13,9 @@ class AdminPanel {
 
     // CONFIG Cloudinary (pon aquí tu preset unsigned)
     this.CLOUD_NAME = 'dhv8izd9i';              // ya lo tienes
-    this.UPLOAD_PRESET = 'mi_preset_unsigned';  // <- Cambia por tu preset unsigned
+    this.UPLOAD_PRESET = 'mi_preset_unsigned';  // <- Cambia por tu preset unsigned real
 
-    // Endpoint netlify function que actualiza posts.json
+    // Endpoint netlify functions
     this.UPLOAD_POST_ENDPOINT = '/.netlify/functions/upload-post';
     this.DELETE_POST_ENDPOINT = '/.netlify/functions/delete-post';
 
@@ -40,6 +40,11 @@ class AdminPanel {
     if (this.uploadForm) this.uploadForm.addEventListener('submit', (e) => this.manejarSubida(e));
     if (this.previewBtn) this.previewBtn.addEventListener('click', (e) => this.mostrarPreview(e));
 
+    // actualizar preview cuando cambie el file input
+    if (this.fileInput) {
+      this.fileInput.addEventListener('change', () => this._updatePreviewFromFile());
+    }
+
     // Delegación para botones Editar / Eliminar dentro del contenedor
     if (this.container) {
       this.container.addEventListener('click', (e) => {
@@ -54,6 +59,12 @@ class AdminPanel {
           this.confirmarYEliminar(id);
         }
       });
+    }
+
+    // Buscador admin (opcional, si existe input #admin-search)
+    const adminSearch = document.querySelector('#admin-search');
+    if (adminSearch) {
+      adminSearch.addEventListener('input', (e) => this._filtrarAdmin(e.target.value));
     }
   }
 
@@ -85,15 +96,15 @@ class AdminPanel {
       const mediaHtml = this._getMediaHtml(mediaUrl, post.tipo, post.thumbnail);
 
       return `
-        <article class="post-card admin-post-card">
+        <article class="post-card admin-post-card" data-id="${this._escapeHtml(slug)}">
           <div class="admin-post-media">${mediaHtml}</div>
           <div class="admin-post-info">
             <h4>${this._escapeHtml(title)}</h4>
-            <div class="admin-post-meta">${this._escapeHtml(excerpt).slice(0,120)}</div>
+            <div class="admin-post-meta">${this._escapeHtml(String(excerpt || '')).slice(0,120)}</div>
           </div>
           <div class="admin-post-actions">
-            <button class="btn-view btn-edit" data-id="${this._escapeHtml(slug)}">Editar</button>
-            <button class="btn-delete" data-id="${this._escapeHtml(slug)}">Eliminar</button>
+            <button type="button" class="btn-view btn-edit" data-id="${this._escapeHtml(slug)}">Editar</button>
+            <button type="button" class="btn-delete" data-id="${this._escapeHtml(slug)}">Eliminar</button>
           </div>
         </article>
       `;
@@ -116,7 +127,7 @@ class AdminPanel {
     const isVideo = (typeof tipo === 'string' && tipo.toLowerCase() === 'video') || /\.mp4($|\?)/i.test(url) || /\.webm($|\?)/i.test(url);
     if (isVideo) {
       const poster = thumbnail ? ` poster="${thumbnail}" ` : '';
-      return `<video src="${url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:6px"${poster}></video>`;
+      return `<video src="${url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" ${poster}></video>`;
     }
 
     // image fallback
@@ -124,7 +135,7 @@ class AdminPanel {
   }
 
   _escapeHtml(text) {
-    if (!text) return '';
+    if (text === undefined || text === null) return '';
     return String(text).replace(/[&<>"'`]/g, (s) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#x60;'})[s]);
   }
 
@@ -142,39 +153,82 @@ class AdminPanel {
     this.uploadStatus.innerText = '';
   }
 
-  async mostrarPreview(e) {
-    e.preventDefault();
-    let previewArea = document.querySelector('.preview-area');
-    if (!previewArea) {
-      previewArea = document.createElement('div');
-      previewArea.className = 'preview-area';
-      this.uploadForm.parentNode.insertBefore(previewArea, this.uploadForm.nextSibling);
-    }
-    previewArea.innerHTML = '';
+  // Mostrar/ocultar y rellenar preview usando el preview-area ya presente en el HTML
+  mostrarPreview(e) {
+    e && e.preventDefault && e.preventDefault();
 
-    const file = this.fileInput && this.fileInput.files && this.fileInput.files[0];
-    if (!file) {
-      previewArea.innerHTML = '<p class="file-info">No hay archivo seleccionado para previsualizar.</p>';
+    const previewArea = document.querySelector('#preview-area');
+    const previewCard = document.querySelector('#preview-card');
+    const previewMedia = document.querySelector('#preview-media');
+    const previewTitle = document.querySelector('#preview-title');
+    const previewMeta = document.querySelector('#preview-meta');
+    const previewDesc = document.querySelector('#preview-desc');
+
+    // si no existe contenedor, crear minimal (pero tu HTML ya tiene uno)
+    if (!previewArea) {
+      const pa = document.createElement('div');
+      pa.className = 'preview-area';
+      document.body.appendChild(pa);
+    }
+
+    // Si preview ya visible, ocultar
+    if (previewArea && previewArea.style && previewArea.style.display && previewArea.style.display !== 'none') {
+      previewArea.style.display = 'none';
       return;
     }
 
-    const url = URL.createObjectURL(file);
-    if (file.type.startsWith('image/')) {
-      previewArea.innerHTML = `<div class="preview-card"><img src="${url}" alt="preview" style="max-width:100%;height:auto;display:block;border-radius:8px"/></div>`;
-    } else if (file.type.startsWith('video/')) {
-      previewArea.innerHTML = `<div class="preview-card"><video controls src="${url}" style="width:100%;height:auto;border-radius:8px;display:block;"></video></div>`;
+    // Forzar mostrar
+    if (previewArea) previewArea.style.display = 'block';
+
+    // Rellenar desde valores del formulario (si existe file, tomarlo; sino usar campos)
+    const file = this.fileInput && this.fileInput.files && this.fileInput.files[0];
+    const title = (this.titleInput && this.titleInput.value) || '';
+    const excerpt = (this.excerptInput && this.excerptInput.value) || '';
+
+    if (file) {
+      // usa URL.createObjectURL para previsualizar
+      const url = URL.createObjectURL(file);
+      if (file.type.startsWith('image/')) {
+        if (previewMedia) previewMedia.innerHTML = `<img src="${url}" alt="preview" style="max-width:100%;height:auto;display:block;border-radius:8px">`;
+      } else if (file.type.startsWith('video/')) {
+        if (previewMedia) previewMedia.innerHTML = `<video controls src="${url}" style="width:100%;height:auto;border-radius:8px;display:block;"></video>`;
+      } else {
+        if (previewMedia) previewMedia.innerHTML = `<p>Tipo no soportado</p>`;
+      }
+      if (previewTitle) previewTitle.textContent = title || file.name;
+      if (previewMeta) previewMeta.textContent = (this.categoriaInput && this.categoriaInput.value) || '';
+      if (previewDesc) previewDesc.textContent = excerpt || '';
+      // liberar el objectURL después (timeout prudente)
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 30000);
     } else {
-      previewArea.innerHTML = `<div class="preview-card"><p>Tipo de archivo no soportado para preview.</p></div>`;
+      // No hay file: rellenar con texto / campos
+      if (previewMedia) previewMedia.innerHTML = `<div style="width:100%;height:160px;background:#f3f3f3;display:flex;align-items:center;justify-content:center;color:#999">No hay archivo seleccionado</div>`;
+      if (previewTitle) previewTitle.textContent = title || 'Sin título';
+      if (previewMeta) previewMeta.textContent = (this.categoriaInput && this.categoriaInput.value) || '';
+      if (previewDesc) previewDesc.textContent = excerpt || '';
     }
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  // Llamada que usan change del input file para actualizar preview automáticamente
+  _updatePreviewFromFile() {
+    // Si existe preview-area y está visible, actualizar su contenido
+    const previewArea = document.querySelector('#preview-area');
+    if (previewArea && previewArea.style && previewArea.style.display && previewArea.style.display !== 'none') {
+      this.mostrarPreview();
+    } else {
+      // si no está visible, dejar preparado (no mostrar) o mostrar según tu preferencia:
+      // aquí no mostramos automáticamente para no interrumpir al usuario; el botón "Vista previa" lo mostrará
+      return;
+    }
   }
 
   async manejarSubida(event) {
     event.preventDefault();
     this.clearStatus();
     try {
-      if (!this.CLOUD_NAME || !this.UPLOAD_PRESET || this.UPLOAD_PRESET === 'TU_UNSIGNED_PRESET') {
-        throw new Error('Configura UPLOAD_PRESET en admin.js antes de subir (reemplaza "TU_UNSIGNED_PRESET").');
+      // Validación preset
+      if (!this.CLOUD_NAME || !this.UPLOAD_PRESET || this.UPLOAD_PRESET === 'TU_UNSIGNED_PRESET' || this.UPLOAD_PRESET === 'mi_preset_unsigned') {
+        throw new Error('Configura UPLOAD_PRESET en admin.js antes de subir (reemplaza "mi_preset_unsigned").');
       }
 
       const title = (this.titleInput && this.titleInput.value.trim()) || '';
@@ -248,8 +302,8 @@ class AdminPanel {
       this.setStatus('Subida y post creado correctamente ✅', 'success');
       this.uploadForm.reset();
 
-      const previewArea = document.querySelector('.preview-area');
-      if (previewArea) previewArea.remove();
+      const previewArea = document.querySelector('#preview-area');
+      if (previewArea) previewArea.style.display = 'none';
 
     } catch (err) {
       console.error('manejarSubida error:', err);
@@ -413,6 +467,24 @@ class AdminPanel {
       console.error('Error eliminando post:', err);
       alert('Error eliminando: ' + (err.message || err));
     }
+  }
+
+  // simple filtro en admin
+  _filtrarAdmin(term) {
+    if (!term) {
+      this.renderizarPostsAdmin();
+      return;
+    }
+    const t = term.toLowerCase();
+    const filtered = this.posts.filter(p => {
+      const title = (p.titulo || p.title || '').toLowerCase();
+      const cat = (p.categoria || p.category || '').toLowerCase();
+      return title.includes(t) || cat.includes(t);
+    });
+    const old = this.posts;
+    this.posts = filtered;
+    this.renderizarPostsAdmin();
+    this.posts = old; // keep original
   }
 }
 

@@ -241,6 +241,7 @@
   animation: fadeIn 0.3s ease;
 }
 
+/* Reemplazar la regla .modal-content por esta para evitar recortes en video */
 .modal-content {
   position: relative;
   margin: 2% auto;
@@ -249,9 +250,34 @@
   max-height: 95vh;
   background: white;
   border-radius: 16px;
-  overflow: hidden;
+  /* permitir scroll y no recortar media grande */
+  overflow: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Contenedor del media dentro del modal: centra y limita tamaño */
+#modal-media {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Imagen / Video en modal: que no se recorte, que se ajuste manteniendo proporción */
+#modal-media img,
+#modal-media video {
+  width: 100%;
+  height: auto;
+  max-height: calc(80vh - 160px);
+  object-fit: contain;
+  border-radius: 12px;
+  display: block;
 }
 
 /* ===== BOTÓN CERRAR MEJORADO ===== */
