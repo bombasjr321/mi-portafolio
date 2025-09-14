@@ -1,25 +1,25 @@
-// admin.js - Panel admin (frontend) - versión extendida y compatible
+// admin.js - Admin panel (Cloudinary upload + crear post)
 class AdminPanel {
   constructor() {
     this.posts = [];
     this.container = document.querySelector('#posts-list');
     this.uploadForm = document.querySelector('#upload-form');
     this.fileInput = document.querySelector('#file-input');
-    this.previewArea = document.querySelector('#preview-area');
-    this.previewMedia = document.querySelector('#preview-media');
-    this.previewTitle = document.querySelector('#preview-title');
-    this.previewDesc = document.querySelector('#preview-desc');
-    this.previewMeta = document.querySelector('#preview-meta');
+    this.titleInput = document.querySelector('#title');
+    this.excerptInput = document.querySelector('#excerpt');
+    this.categoriaInput = document.querySelector('#categoria');
     this.previewBtn = document.querySelector('#preview-btn');
-    this.statusDiv = document.querySelector('#upload-status');
+    this.uploadStatus = document.querySelector('#upload-status');
 
-    // endpoints (ajusta si tus functions usan otras rutas)
-    this.endpoints = {
-      uploadFile: '/.netlify/functions/upload-file',
-      uploadPost: '/.netlify/functions/upload-post',
-      getPosts: '/.netlify/functions/get-posts',
-      deletePost: '/.netlify/functions/delete-post'
-    };
+    // CONFIGURACIÓN Cloudinary: reemplaza con tu preset
+    this.CLOUD_NAME = 'dhv8izd9i';              // ya lo tienes
+    this.UPLOAD_PRESET = 'mi_preset_unsigned';  // <- Cambia esto por tu preset unsigned
+
+    // Endpoint netlify function que actualiza posts.json
+    this.UPLOAD_POST_ENDPOINT = '/.netlify/functions/upload-post';
+
+    // Tamaño máximo recomendado en cliente (200 MB)
+    this.MAX_SIZE_BYTES = 200 * 1024 * 1024;
   }
 
   async init() {
@@ -28,329 +28,228 @@ class AdminPanel {
       await this.cargarPosts();
       this.renderizarPostsAdmin();
     } catch (err) {
-      console.error('Error en init:', err);
+      console.error('init error:', err);
     }
   }
 
   attachListeners() {
-    if (this.uploadForm) {
-      this.uploadForm.addEventListener('submit', (e) => this.manejarSubida(e));
-    }
-
-    if (this.fileInput) {
-      this.fileInput.addEventListener('change', () => {
-        const f = this.fileInput.files && this.fileInput.files[0];
-        if (f) this.renderPreviewFile(f);
-        else this.clearPreview();
-      });
-    }
-
-    if (this.previewBtn) {
-      this.previewBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        // probar preview desde inputs del form
-        const f = this.fileInput && this.fileInput.files && this.fileInput.files[0];
-        if (f) this.renderPreviewFile(f);
-        else {
-          // si no hay archivo, intentar preview por URL si el form lo tuviera
-          alert('Selecciona un archivo para ver la vista previa.');
-        }
-      });
-    }
-
-    // Delegación: botones Ver y Eliminar en la lista de posts
-    if (this.container) {
-      this.container.addEventListener('click', (e) => {
-        const viewBtn = e.target.closest('.btn-view');
-        const delBtn = e.target.closest('.btn-delete');
-
-        if (viewBtn) {
-          const url = viewBtn.dataset.url;
-          if (url) window.open(url, '_blank');
-          return;
-        }
-
-        if (delBtn) {
-          const id = delBtn.dataset.id;
-          if (id) this.handleDelete(id);
-          return;
-        }
-      });
-    }
+    if (this.uploadForm) this.uploadForm.addEventListener('submit', (e) => this.manejarSubida(e));
+    if (this.previewBtn) this.previewBtn.addEventListener('click', (e) => this.mostrarPreview(e));
   }
 
   async cargarPosts() {
     try {
-      const response = await fetch(this.endpoints.getPosts);
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Error al cargar posts: ${response.status} ${text}`);
+      const resp = await fetch('/.netlify/functions/get-posts');
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Error ${resp.status} ${txt}`);
       }
-      const data = await response.json();
-      if (Array.isArray(data)) this.posts = data;
-      else if (Array.isArray(data.posts)) this.posts = data.posts;
-      else this.posts = [];
+      const data = await resp.json();
+      this.posts = Array.isArray(data) ? data : (Array.isArray(data.posts) ? data.posts : []);
       console.log('Posts cargados:', this.posts.length);
     } catch (err) {
-      console.error('Error en cargarPosts:', err);
+      console.error('cargarPosts error:', err);
       this.posts = [];
-      this.setStatus('No se pudieron cargar posts', 'error');
     }
   }
 
   renderizarPostsAdmin() {
-    if (!this.container) {
-      console.warn('No se encontró el contenedor #posts-list');
-      return;
-    }
+    if (!this.container) return;
     if (!Array.isArray(this.posts)) this.posts = [];
 
-    if (this.posts.length === 0) {
-      this.container.innerHTML = '<div class="no-posts">No hay publicaciones.</div>';
+    const html = this.posts.map(post => {
+      const title = post.titulo || post.title || 'Sin título';
+      const slug = post.id || post.slug || '';
+      const mediaUrl = post.archivo || post.url || '';
+      const excerpt = post.descripcion || post.excerpt || '';
+      const mediaHtml = this._getMediaHtml(mediaUrl, post.tipo, post.thumbnail);
+
+      return `
+        <article class="post-card admin-post-card">
+          <div class="admin-post-media">${mediaHtml}</div>
+          <div class="admin-post-info">
+            <h4>${this._escapeHtml(title)}</h4>
+            <div class="admin-post-meta">${this._escapeHtml(excerpt).slice(0,120)}</div>
+          </div>
+          <div class="admin-post-actions">
+            <a class="btn-view" href="/admin/editar.html?slug=${encodeURIComponent(slug)}" target="_blank">Editar</a>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    this.container.innerHTML = html || '<p>No hay publicaciones.</p>';
+  }
+
+  _getMediaHtml(url, tipo, thumbnail) {
+    if (!url) return `<div style="width:100px;height:80px;background:#f3f3f3;display:flex;align-items:center;justify-content:center;color:#999">Sin media</div>`;
+
+    // YouTube embed detect
+    const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([A-Za-z0-9_-]{6,})/);
+    if (yt) {
+      const id = yt[1];
+      return `<iframe src="https://www.youtube.com/embed/${id}" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;min-height:80px;object-fit:cover;border:0;border-radius:6px"></iframe>`;
+    }
+
+    // Video (mp4/webm) detection or explicit tipo === 'video'
+    const isVideo = (typeof tipo === 'string' && tipo.toLowerCase() === 'video') || /\.mp4($|\?)/i.test(url) || /\.webm($|\?)/i.test(url);
+    if (isVideo) {
+      // if we have thumbnail, show as poster
+      const poster = thumbnail ? ` poster="${thumbnail}" ` : '';
+      return `<video src="${url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`;
+    }
+
+    // image fallback
+    return `<img src="${url}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+  }
+
+  _escapeHtml(text) {
+    if (!text) return '';
+    return String(text).replace(/[&<>"'`]/g, (s) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#x60;'})[s]);
+  }
+
+  setStatus(msg, type = '') {
+    if (!this.uploadStatus) return;
+    this.uploadStatus.style.display = 'block';
+    this.uploadStatus.className = 'upload-status ' + (type ? type : '');
+    this.uploadStatus.innerText = msg;
+  }
+
+  clearStatus() {
+    if (!this.uploadStatus) return;
+    this.uploadStatus.style.display = 'none';
+    this.uploadStatus.className = 'upload-status';
+    this.uploadStatus.innerText = '';
+  }
+
+  async mostrarPreview(e) {
+    e.preventDefault();
+    // crea o usa un contenedor .preview-area debajo del form
+    let previewArea = document.querySelector('.preview-area');
+    if (!previewArea) {
+      previewArea = document.createElement('div');
+      previewArea.className = 'preview-area';
+      // insert after form
+      this.uploadForm.parentNode.insertBefore(previewArea, this.uploadForm.nextSibling);
+    }
+    previewArea.innerHTML = '';
+
+    const file = this.fileInput && this.fileInput.files && this.fileInput.files[0];
+    if (!file) {
+      previewArea.innerHTML = '<p class="file-info">No hay archivo seleccionado para previsualizar.</p>';
       return;
     }
 
-    const html = this.posts.map(post => this.postToAdminCard(post)).join('');
-    this.container.innerHTML = html;
+    const url = URL.createObjectURL(file);
+    if (file.type.startsWith('image/')) {
+      previewArea.innerHTML = `<div class="preview-card"><img src="${url}" alt="preview" style="max-width:100%;height:auto;display:block;border-radius:8px"/></div>`;
+    } else if (file.type.startsWith('video/')) {
+      previewArea.innerHTML = `<div class="preview-card"><video controls src="${url}" style="width:100%;height:auto;border-radius:8px;display:block;"></video></div>`;
+    } else {
+      previewArea.innerHTML = `<div class="preview-card"><p>Tipo de archivo no soportado para preview.</p></div>`;
+    }
+    // liberar objeto URL cuando ya no se necesita (opcional)
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
-  postToAdminCard(post) {
-    const title = post.title || post.titulo || 'Sin título';
-    const id = post.id || post.slug || post.fileName || '';
-    const categoria = post.categoria || '';
-    const date = post.fecha ? new Date(post.fecha).toLocaleString() : '';
-    const archivo = post.archivo || post.url || post.file || post.path || '';
-    const thumb = post.thumbnail || post.thumb || post.thumbUrl || (/\.(jpg|jpeg|png|webp|gif)$/i.test(archivo) ? archivo : '');
-    const isVideo = /\.(mp4|mov|avi|webm|mkv)$/i.test(archivo) || (post.tipo && post.tipo === 'video');
-
-    const mediaHtml = isVideo
-      ? `<div class="admin-post-media"><video src="${archivo}" muted playsinline style="width:100%;height:100%;object-fit:cover"></video></div>`
-      : `<div class="admin-post-media"><img src="${thumb || archivo}" alt="${this.escapeHtml(title)}" style="width:100%;height:100%;object-fit:cover"></div>`;
-
-    return `
-      <div class="admin-post-card" data-id="${this.escapeHtml(id)}">
-        ${mediaHtml}
-        <div class="admin-post-info">
-          <h4>${this.escapeHtml(title)}</h4>
-          <div class="admin-post-meta">
-            <span class="categoria">${this.escapeHtml(categoria)}</span>
-            <span>${this.escapeHtml(date)}</span>
-          </div>
-        </div>
-        <div class="admin-post-actions">
-          <button class="btn-view" data-id="${this.escapeHtml(id)}" data-url="${this.escapeHtml(archivo)}">Ver</button>
-          <button class="btn-delete" data-id="${this.escapeHtml(id)}">Eliminar</button>
-        </div>
-      </div>
-    `;
-  }
-
-  // Manejar subida: sube archivo (upload-file) -> registra post (upload-post)
   async manejarSubida(event) {
     event.preventDefault();
+    this.clearStatus();
     try {
-      const form = event.target;
-      const fileInput = form.querySelector('input[type=file]');
-      const titleInput = form.querySelector('input[name=title]');
-      const excerptInput = form.querySelector('textarea[name=excerpt]');
-      const categoriaInput = form.querySelector('select[name=categoria]') || form.querySelector('select[id=categoria]');
-      const branchInput = form.querySelector('input[name=branch]');
-
-      if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-        return this.alertOrStatus('Selecciona un archivo', 'error');
+      if (!this.CLOUD_NAME || !this.UPLOAD_PRESET || this.UPLOAD_PRESET === 'TU_UNSIGNED_PRESET') {
+        throw new Error('Configura UPLOAD_PRESET en admin.js antes de subir (reemplaza "TU_UNSIGNED_PRESET").');
       }
 
-      const file = fileInput.files[0];
-      const filename = `${Date.now()}_${file.name}`.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const title = (titleInput && titleInput.value) ? titleInput.value.trim() : filename;
-      const excerpt = excerptInput && excerptInput.value ? excerptInput.value.trim() : '';
-      const categoria = categoriaInput && categoriaInput.value ? categoriaInput.value : '';
-      const branch = branchInput && branchInput.value ? branchInput.value : 'main';
+      const title = (this.titleInput && this.titleInput.value.trim()) || '';
+      const excerpt = (this.excerptInput && this.excerptInput.value.trim()) || '';
+      const categoria = (this.categoriaInput && this.categoriaInput.value) || '';
+      const file = this.fileInput && this.fileInput.files && this.fileInput.files[0];
 
-      this.setStatus('Leyendo archivo...', 'loading');
+      if (!file) return alert('Selecciona un archivo (imagen o video).');
 
-      // Convertir archivo a base64 puro (sin encabezado data:)
-      const base64 = await this.readFileAsBase64(file);
-      const commaIndex = base64.indexOf(',');
-      const pureBase64 = commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64;
+      if (file.size > this.MAX_SIZE_BYTES) {
+        return alert('El archivo es demasiado grande (más de 200 MB). Reduce su tamaño o sube a Cloudinary por la web.');
+      }
 
-      // ✅ AQUÍ ESTÁ EL CAMBIO: enviamos JSON con el formato que espera upload-file
-      this.setStatus('Subiendo archivo...', 'loading');
-      const payloadFile = {
-        title: title,        // ✅ Enviamos el título del formulario
-        excerpt: excerpt,    // ✅ Enviamos la descripción del formulario
-        filename: filename,
-        branch: branch,
-        content: pureBase64  // base64 puro sin "data:image/png;base64,"
+      this.setStatus('Subiendo a Cloudinary...');
+
+      // Build cloudinary upload
+      const cloudUrl = `https://api.cloudinary.com/v1_1/${this.CLOUD_NAME}/auto/upload`;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', this.UPLOAD_PRESET);
+
+      const cloudResp = await fetch(cloudUrl, { method: 'POST', body: fd });
+      const cloudBody = await cloudResp.json();
+
+      if (!cloudResp.ok) {
+        console.error('Cloudinary error:', cloudBody);
+        this.setStatus('Error subiendo a Cloudinary: ' + (cloudBody.error && cloudBody.error.message ? cloudBody.error.message : 'unknown'), 'error');
+        throw new Error('Error Cloudinary');
+      }
+
+      const publicUrl = cloudBody.secure_url || cloudBody.url;
+      const resourceType = cloudBody.resource_type || (file.type && file.type.startsWith('video') ? 'video' : 'image');
+      const thumbnail = cloudBody.thumbnail_url || (cloudBody.eager && cloudBody.eager[0] && cloudBody.eager[0].secure_url) || null;
+
+      this.setStatus('Guardando metadata en posts.json (GitHub)...');
+
+      // Payload para upload-post function
+      const postPayload = {
+        titulo: title || file.name,
+        descripcion: excerpt || '',
+        categoria: categoria || (resourceType === 'video' ? 'video' : 'imagen'),
+        archivo: publicUrl,
+        tipo: resourceType === 'video' ? 'video' : 'imagen',
+        thumbnail: thumbnail
       };
 
-      const resp = await fetch(this.endpoints.uploadFile, {
+      const resp2 = await fetch(this.UPLOAD_POST_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payloadFile)
+        body: JSON.stringify(postPayload)
       });
 
-      if (!resp.ok) {
-        const txt = await resp.text();
-        throw new Error(`Error al subir el archivo: ${resp.status} ${txt}`);
+      const body2 = await resp2.json();
+      if (!resp2.ok) {
+        console.error('upload-post error:', body2);
+        this.setStatus('Error actualizando posts.json en GitHub: ' + (body2.error || body2.detail || resp2.status), 'error');
+        throw new Error('Error upload-post');
       }
 
-      const body = await resp.json();
-      // la función ahora devuelve { url, postId }
-      const fileUrl = body.url;
-      const postId = body.postId;
-      
-      if (!fileUrl) {
-        console.warn('upload-file response:', body);
-        throw new Error('La función upload-file no devolvió la URL pública del archivo.');
-      }
-
-      this.setStatus('Archivo subido y post registrado ✅', 'success');
-
-      // ✅ YA NO NECESITAMOS llamar upload-post porque upload-file ya actualiza posts.json
-      // actualizar UI: insertar al inicio
-      const tipo = /\.(mp4|mov|avi|webm|mkv)$/i.test(file.name) ? 'video' : 'imagen';
-      const newPost = {
-        id: postId || `${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
-        title: title,
-        titulo: title, // compatibilidad
-        url: fileUrl,
-        archivo: fileUrl, // compatibilidad
-        excerpt: excerpt,
-        descripcion: excerpt, // compatibilidad
-        categoria: categoria,
-        tipo: tipo,
-        thumbnail: tipo === 'imagen' ? fileUrl : null,
-        date: new Date().toISOString(),
-        fecha: new Date().toISOString() // compatibilidad
-      };
-      
-      this.posts.unshift(newPost);
-      this.renderizarPostsAdmin();
-
-      // limpiar form y preview
-      form.reset();
-      this.clearPreview();
-
-      setTimeout(() => this.setStatus('', ''), 2000);
-
-    } catch (err) {
-      console.error('Error en la subida:', err);
-      this.setStatus('Error en la subida: ' + (err.message || err), 'error');
-    }
-  }
-
-  // Delete post (llama a delete-post function). Si no existe, solo elimina del UI local.
-  async handleDelete(id) {
-    if (!confirm('¿Eliminar este post? Esta acción actualizará posts.json en GitHub.')) return;
-    this.setStatus('Eliminando...', 'loading');
-
-    try {
-      // intentar eliminar vía function
-      const resp = await fetch(this.endpoints.deletePost, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
+      // Actualizar UI localmente
+      this.posts.unshift({
+        id: body2.id || `post_${Date.now()}`,
+        titulo: postPayload.titulo,
+        descripcion: postPayload.descripcion,
+        archivo: postPayload.archivo,
+        tipo: postPayload.tipo,
+        thumbnail: postPayload.thumbnail || null,
+        fecha: new Date().toISOString()
       });
-
-      if (!resp.ok) {
-        // si función no existe o falla, fallback: quitar solo en UI
-        const txt = await resp.text();
-        console.warn('delete-post falló:', resp.status, txt);
-        // eliminar localmente
-        this.posts = this.posts.filter(p => String(p.id) !== String(id));
-        this.renderizarPostsAdmin();
-        this.setStatus('Eliminado localmente (delete function falló).', 'error');
-        setTimeout(() => this.setStatus('', ''), 2000);
-        return;
-      }
-
-      // si OK -> refrescar lista desde github (para mantener sincronía)
-      this.setStatus('Post eliminado. Actualizando lista...', 'success');
-      await this.cargarPosts();
       this.renderizarPostsAdmin();
-      setTimeout(() => this.setStatus('', ''), 1500);
+      this.setStatus('Subida y post creado correctamente ✅', 'success');
+      this.uploadForm.reset();
+      // borrar preview si existe
+      const previewArea = document.querySelector('.preview-area');
+      if (previewArea) previewArea.remove();
+
     } catch (err) {
-      console.error('Error eliminando post:', err);
-      this.setStatus('Error eliminando: ' + (err.message || err), 'error');
+      console.error('manejarSubida error:', err);
+      if (!this.uploadStatus || !this.uploadStatus.style) return alert('Error en la subida: ' + (err.message || err));
+      // si ya seteamos mensaje de error arriba, no sobrescribir
+      if (!this.uploadStatus.classList.contains('error')) {
+        this.setStatus('Error en la subida: ' + (err.message || err), 'error');
+      }
     }
-  }
-
-  // Preview helpers
-  renderPreviewFile(fileOrUrl) {
-    if (!this.previewArea || !this.previewMedia) return;
-    this.previewMedia.innerHTML = '';
-    let isVideo = false;
-
-    // Si es objeto File
-    if (fileOrUrl instanceof File) {
-      const file = fileOrUrl;
-      isVideo = /\.(mp4|mov|avi|webm|mkv)$/i.test(file.name);
-      const url = URL.createObjectURL(file);
-      if (isVideo) this.previewMedia.innerHTML = `<video src="${url}" controls style="width:100%;height:100%;object-fit:cover"></video>`;
-      else this.previewMedia.innerHTML = `<img src="${url}" alt="preview" style="width:100%;height:100%;object-fit:cover">`;
-    } else {
-      // URL string
-      const url = String(fileOrUrl);
-      isVideo = /\.(mp4|mov|avi|webm|mkv)$/i.test(url);
-      if (isVideo) this.previewMedia.innerHTML = `<video src="${url}" controls style="width:100%;height:100%;object-fit:cover"></video>`;
-      else this.previewMedia.innerHTML = `<img src="${url}" alt="preview" style="width:100%;height:100%;object-fit:cover">`;
-    }
-
-    // rellenar meta desde inputs si existen
-    if (this.previewTitle) this.previewTitle.textContent = (document.querySelector('#title')?.value) || (document.querySelector('input[name=title]')?.value) || 'Sin título';
-    if (this.previewDesc) this.previewDesc.textContent = (document.querySelector('#excerpt')?.value) || (document.querySelector('textarea[name=excerpt]')?.value) || '';
-    if (this.previewMeta) this.previewMeta.innerHTML = `<span class="categoria">${(document.querySelector('#categoria')?.value) || ''}</span>`;
-    this.previewArea.style.display = 'block';
-  }
-
-  clearPreview() {
-    if (!this.previewArea || !this.previewMedia) return;
-    this.previewMedia.innerHTML = '';
-    if (this.previewTitle) this.previewTitle.textContent = '';
-    if (this.previewDesc) this.previewDesc.textContent = '';
-    if (this.previewMeta) this.previewMeta.innerHTML = '';
-    this.previewArea.style.display = 'none';
-  }
-
-  // util
-  readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  setStatus(text, cls='') {
-    if (!this.statusDiv) {
-      if (text) alert(text);
-      return;
-    }
-    this.statusDiv.style.display = text ? 'block' : 'none';
-    this.statusDiv.className = 'upload-status' + (cls ? ' ' + cls : '');
-    this.statusDiv.textContent = text || '';
-  }
-
-  alertOrStatus(text, type='') {
-    // prefer status if visible, else alert
-    if (this.statusDiv) this.setStatus(text, type);
-    else alert(text);
-  }
-
-  escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>"'`=\/]/g, s => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;','/':'&#47;','=':'&#61;'
-    })[s]);
   }
 }
 
-// Inicializar solo en navegador
+// Inicializar en navegador
 if (typeof window !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
-    const admin = new AdminPanel();
-    admin.init();
+    window.adminPanel = new AdminPanel();
+    window.adminPanel.init();
   });
 }
+

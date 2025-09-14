@@ -1,182 +1,111 @@
 // netlify/functions/upload-post.js
-// Actualiza posts.json via GitHub API
+const GITHUB_API_BASE = 'https://api.github.com';
 
 exports.handler = async (event, context) => {
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-    };
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
 
-    if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+
+  try {
+    if (!process.env.GITHUB_OWNER || !process.env.GITHUB_REPO || !process.env.GITHUB_TOKEN) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Faltan variables de entorno GITHUB_OWNER/GITHUB_REPO/GITHUB_TOKEN' }) };
     }
 
     if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            headers,
-            body: JSON.stringify({ error: 'Método no permitido' })
-        };
+      return { statusCode: 405, headers, body: JSON.stringify({ error: 'Método no permitido' }) };
     }
 
-    try {
-        const postData = JSON.parse(event.body);
-        
-        // Validar campos requeridos
-        const camposRequeridos = ['titulo', 'descripcion', 'categoria', 'archivo', 'tipo'];
-        for (const campo of camposRequeridos) {
-            if (!postData[campo]) {
-                return {
-                    statusCode: 400,
-                    headers,
-                    body: JSON.stringify({ error: `Campo faltante: ${campo}` })
-                };
-            }
-        }
+    const payload = JSON.parse(event.body || '{}');
 
-        // Generar nuevo post
-        const nuevoPost = {
-            id: generateId(),
-            titulo: postData.titulo.trim(),
-            descripcion: postData.descripcion.trim(),
-            categoria: postData.categoria,
-            archivo: postData.archivo,
-            tipo: postData.tipo,
-            fecha: new Date().toISOString(),
-            thumbnail: postData.thumbnail || null
-        };
+    const titulo = payload.titulo || payload.title || 'Sin título';
+    const descripcion = payload.descripcion || payload.excerpt || '';
+    const archivo = payload.archivo || payload.url || '';
+    const tipo = payload.tipo || (archivo && (archivo.match(/\.mp4($|\?)/i) || archivo.includes('youtube')) ? 'video' : 'imagen');
+    const categoria = payload.categoria || (tipo === 'video' ? 'video' : 'imagen');
+    const thumbnail = payload.thumbnail || null;
 
-        // Obtener posts actuales desde GitHub
-        const currentPosts = await obtenerPostsDesdeGitHub();
-        
-        // Agregar nuevo post al inicio
-        currentPosts.unshift(nuevoPost);
-        
-        // Limitar a 100 posts
-        if (currentPosts.length > 100) {
-            currentPosts.length = 100;
-        }
-
-        // Actualizar archivo en GitHub
-        await actualizarPostsEnGitHub(currentPosts);
-
-        return {
-            statusCode: 201,
-            headers,
-            body: JSON.stringify({
-                success: true,
-                id: nuevoPost.id,
-                message: 'Post creado y actualizado en GitHub'
-            })
-        };
-
-    } catch (error) {
-        console.error('Error:', error);
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({
-                error: 'Error interno',
-                details: error.message
-            })
-        };
-    }
-};
-
-// Función para obtener posts desde GitHub
-async function obtenerPostsDesdeGitHub() {
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const REPO_OWNER = process.env.GITHUB_OWNER; // tu-usuario
-    const REPO_NAME = process.env.GITHUB_REPO;   // nombre-repo
-    
-    if (!GITHUB_TOKEN || !REPO_OWNER || !REPO_NAME) {
-        throw new Error('Faltan variables de entorno de GitHub');
-    }
-
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/data/posts.json`;
-    
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                // Archivo no existe, devolver array vacío
-                return [];
-            }
-            throw new Error(`GitHub API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const content = Buffer.from(data.content, 'base64').toString();
-        return JSON.parse(content);
-        
-    } catch (error) {
-        console.log('Error obteniendo posts, devolviendo array vacío:', error.message);
-        return [];
-    }
-}
-
-// Función para actualizar posts en GitHub
-async function actualizarPostsEnGitHub(posts) {
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const REPO_OWNER = process.env.GITHUB_OWNER;
-    const REPO_NAME = process.env.GITHUB_REPO;
-    
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/data/posts.json`;
-    
-    // Primero obtener el SHA actual del archivo
-    let sha = null;
-    try {
-        const currentFile = await fetch(url, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-        
-        if (currentFile.ok) {
-            const fileData = await currentFile.json();
-            sha = fileData.sha;
-        }
-    } catch (error) {
-        // Archivo no existe, sha será null
-    }
-
-    // Actualizar o crear archivo
-    const content = JSON.stringify(posts, null, 2);
-    const encodedContent = Buffer.from(content).toString('base64');
-
-    const body = {
-        message: `Agregar nuevo post: ${posts[0]?.titulo || 'Sin título'}`,
-        content: encodedContent,
-        ...(sha && { sha }) // Solo incluir SHA si existe
+    const nuevoPost = {
+      id: payload.id || `post_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+      titulo,
+      descripcion,
+      categoria,
+      archivo,
+      tipo,
+      fecha: new Date().toISOString(),
+      thumbnail
     };
 
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
+    const owner = process.env.GITHUB_OWNER;
+    const repo = process.env.GITHUB_REPO;
+    const token = process.env.GITHUB_TOKEN;
 
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Error actualizando GitHub: ${response.status} - ${error}`);
+    const candidatePaths = ['public/posts.json', 'data/posts.json'];
+    let posts = [];
+    let postsSha = null;
+    let postsPathUsed = null;
+
+    for (const p of candidatePaths) {
+      try {
+        const getResp = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(p)}`, {
+          headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'netlify-function' }
+        });
+        if (getResp.ok) {
+          const postsJson = await getResp.json();
+          postsSha = postsJson.sha;
+          const decoded = Buffer.from(postsJson.content, 'base64').toString('utf8');
+          posts = JSON.parse(decoded);
+          if (!Array.isArray(posts)) posts = [];
+          postsPathUsed = p;
+          break;
+        }
+      } catch (err) {
+        console.warn(`No se pudo leer ${p}:`, err.message);
+      }
     }
 
-    return await response.json();
-}
+    if (!postsPathUsed) postsPathUsed = 'data/posts.json';
+    posts.unshift(nuevoPost);
+    if (posts.length > 100) posts.length = 100;
 
-// Generar ID único
-function generateId() {
-    return `post_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-}
+    const updatedContent = Buffer.from(JSON.stringify(posts, null, 2), 'utf8').toString('base64');
+
+    const commitResp = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(postsPathUsed)}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'netlify-function',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `Update ${postsPathUsed} - add ${nuevoPost.titulo}`,
+        content: updatedContent,
+        sha: postsSha || undefined
+      })
+    });
+
+    if (!commitResp.ok) {
+      const text = await commitResp.text();
+      console.error('Error actualizando posts.json:', commitResp.status, text);
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Error actualizando posts.json', detail: text }) };
+    }
+
+    const commitJson = await commitResp.json();
+
+    return {
+      statusCode: 201,
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ success: true, id: nuevoPost.id, commit: commitJson })
+    };
+
+  } catch (err) {
+    console.error('upload-post handler error:', err);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+  }
+};
+
