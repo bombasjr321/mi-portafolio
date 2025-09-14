@@ -500,7 +500,7 @@ if (typeof window !== 'undefined') {
   btn.addEventListener('click', () => {
     try { sessionStorage.removeItem('admin_auth'); } catch(e){ localStorage.removeItem('admin_auth'); }
     // redirigir al login
-    window.location.href = '/admin/login.html';
+    window.location.href = '/login.html';
   });
 })();
 
