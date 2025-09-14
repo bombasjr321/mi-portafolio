@@ -1,5 +1,4 @@
-// main.js - JavaScript principal del portafolio
-
+// main.js - JavaScript principal del portafolio (VERSIÓN NORMALIZADA)
 class Portfolio {
     constructor() {
         this.posts = [];
@@ -20,7 +19,8 @@ class Portfolio {
         const filtros = document.querySelectorAll('.filtro-btn');
         filtros.forEach(btn => {
             btn.addEventListener('click', (e) => {
-                this.cambiarFiltro(e.target.dataset.filter);
+                const filtro = e.currentTarget.dataset.filter || e.currentTarget.getAttribute('data-filter');
+                this.cambiarFiltro(filtro);
             });
         });
 
@@ -33,18 +33,16 @@ class Portfolio {
         }
 
         // Formulario de contacto
-        // dentro de setupEventListeners()
-const contactForm = document.getElementById('contacto-form');
-if (contactForm) {
-  // Sólo agregamos listener AJAX si el formulario NO es manejado por Netlify (data-netlify)
-  if (!contactForm.hasAttribute('data-netlify')) {
-    contactForm.addEventListener('submit', this.manejarFormularioContacto.bind(this));
-  } else {
-    // si quieres mostrar un mensaje client-side después del submit, podrías usar el evento 'submit' sin preventDefault
-    // o dejar que Netlify redirija a una 'thank-you' page configurada.
-  }
-}
-
+        const contactForm = document.getElementById('contacto-form');
+        if (contactForm) {
+            // Si el form tiene atributo data-netlify o netlify, dejamos que Netlify lo procese
+            if (!contactForm.hasAttribute('data-netlify') && !contactForm.hasAttribute('netlify')) {
+                contactForm.addEventListener('submit', this.manejarFormularioContacto.bind(this));
+            } else {
+                // si quieres manejar client-side mostrar mensajes, podríamos suscribirnos sin preventDefault
+                // por ahora no interferimos con Netlify.
+            }
+        }
     }
 
     async cargarPosts() {
@@ -53,14 +51,52 @@ if (contactForm) {
             const response = await fetch('/.netlify/functions/get-posts');
             if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
 
-            this.posts = await response.json();
+            const raw = await response.json();
+
+            // Normalizar formato: puede venir [] o { posts: [] }
+            const arr = Array.isArray(raw) ? raw : (Array.isArray(raw.posts) ? raw.posts : []);
+            this.posts = arr.map(p => this._normalizePost(p));
             console.log('Posts cargados:', this.posts.length);
+            // debug opcional:
+            // console.log('Posts sample:', this.posts.slice(0,3));
         } catch (error) {
             console.error('Error cargando posts:', error);
             this.mostrarError('No se pudieron cargar los trabajos');
+            this.posts = [];
         } finally {
             this.mostrarLoading(false);
         }
+    }
+
+    // Normaliza cualquiera de estos formatos:
+    // { titulo, descripcion, archivo, tipo, fecha, thumbnail, categoria, id }
+    // { title, excerpt, url, type, date, thumbnail, category, id }
+    _normalizePost(p) {
+        const titulo = p.titulo || p.title || p.name || '';
+        const descripcion = p.descripcion || p.excerpt || p.description || '';
+        const archivo = p.archivo || p.url || p.image || p.file || p.src || '';
+        const tipoRaw = (p.tipo || p.type || '').toString().toLowerCase();
+        const categoria = p.categoria || p.category || '';
+        const thumbnail = p.thumbnail || p.thumb || null;
+        const fecha = p.fecha || p.date || p.created_at || null;
+        const id = (p.id !== undefined && p.id !== null) ? String(p.id) : `post_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+
+        // Determinar tipo si no viene
+        let tipo = 'imagen';
+        if (tipoRaw === 'video' || /\.mp4($|\?)/i.test(archivo) || /\.webm($|\?)/i.test(archivo) || archivo.includes('youtube')) {
+            tipo = 'video';
+        }
+
+        return {
+            id,
+            titulo: titulo || 'Sin título',
+            descripcion: descripcion || '',
+            archivo: archivo || '',
+            tipo,
+            categoria,
+            thumbnail,
+            fecha
+        };
     }
 
     renderizarPosts() {
@@ -70,7 +106,7 @@ if (contactForm) {
 
         let postsFiltrados = this.filtrarPosts();
 
-        if (postsFiltrados.length === 0) {
+        if (!postsFiltrados || postsFiltrados.length === 0) {
             container.innerHTML = '';
             if (noPosts) noPosts.style.display = 'block';
             return;
@@ -82,29 +118,62 @@ if (contactForm) {
     }
 
     crearCardPost(post) {
-        const url = post.url || '';
-        const title = post.title || 'Sin título';
-        const excerpt = post.excerpt || '';
-        const isVideo = this.esVideo(url);
+        const url = post.archivo || '';
+        const title = post.titulo || 'Sin título';
+        const excerpt = post.descripcion || '';
+        const tipo = (post.tipo || 'imagen').toLowerCase();
+        const thumbnail = post.thumbnail || '';
+
+        // Media HTML: detecta Youtube, video o imagen
+        const mediaHtml = this._mediaHtml(url, tipo, thumbnail);
 
         return `
-          <article class="post-card" data-id="${post.id}">
-            ${url
-              ? isVideo
-                ? `<video src="${url}" controls></video>`
-                : `<img src="${url}" alt="${title}">`
-              : '<p>[Sin archivo]</p>'}
-            <h3>${title}</h3>
-            <p>${excerpt}</p>
+          <article class="post-card" data-id="${this._escapeHtml(String(post.id))}" data-tipo="${this._escapeHtml(tipo)}">
+            <div class="post-media">
+              ${mediaHtml}
+              ${tipo === 'video' ? '<div class="play-overlay"><span class="play-icon">▶</span></div>' : ''}
+              ${post.categoria ? `<div class="post-categoria">${this._escapeHtml(post.categoria)}</div>` : ''}
+            </div>
+            <div class="post-content">
+              <h3 class="post-titulo">${this._escapeHtml(title)}</h3>
+              <p class="post-descripcion">${this._escapeHtml(this.truncarTexto(excerpt || '', 120))}</p>
+              <div class="post-meta">
+                <span class="post-fecha">${post.fecha ? new Date(post.fecha).toLocaleDateString('es-ES',{year:'numeric',month:'long',day:'numeric'}) : ''}</span>
+                <span class="post-tipo">${tipo === 'video' ? '📹' : '📸'}</span>
+              </div>
+            </div>
           </article>
         `;
+    }
+
+    _mediaHtml(url, tipo, thumbnail) {
+        if (!url) {
+            return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#999;background:#f5f5f5">Sin archivo</div>`;
+        }
+
+        // YouTube detect (soporta enlaces y embed)
+        const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([A-Za-z0-9_-]{6,})/);
+        if (ytMatch) {
+            const id = ytMatch[1];
+            return `<iframe src="https://www.youtube.com/embed/${id}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;min-height:250px;border:0;"></iframe>`;
+        }
+
+        // Video detection
+        const isVideo = tipo === 'video' || /\.mp4($|\?)/i.test(url) || /\.webm($|\?)/i.test(url);
+        if (isVideo) {
+            const poster = thumbnail ? ` poster="${thumbnail}" ` : '';
+            return `<video src="${url}" controls preload="metadata" ${poster} style="width:100%;height:100%;object-fit:cover;"></video>`;
+        }
+
+        // Image fallback
+        return `<img src="${url}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
     }
 
     setupPostClickHandlers() {
         const cards = document.querySelectorAll('.post-card');
         cards.forEach(card => {
             card.addEventListener('click', () => {
-                const postId = parseInt(card.dataset.id, 10);
+                const postId = card.dataset.id;
                 this.abrirModal(postId);
             });
         });
@@ -114,13 +183,15 @@ if (contactForm) {
         if (this.filtroActual === 'todos') return this.posts;
 
         const tipoBuscado = this.filtroActual === 'fotos' ? 'imagen' : 'video';
-        return this.posts.filter(post => post.tipo === tipoBuscado);
+        return this.posts.filter(post => (post.tipo || '').toLowerCase() === tipoBuscado);
     }
 
     cambiarFiltro(nuevoFiltro) {
+        if (!nuevoFiltro) return;
         this.filtroActual = nuevoFiltro;
         document.querySelectorAll('.filtro-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`[data-filter="${nuevoFiltro}"]`).classList.add('active');
+        const btn = document.querySelector(`[data-filter="${nuevoFiltro}"]`);
+        if (btn) btn.classList.add('active');
         this.renderizarPosts();
     }
 
@@ -128,10 +199,11 @@ if (contactForm) {
         const container = document.getElementById('posts-container');
         if (!container) return;
 
-        const terminoLower = termino.toLowerCase();
+        const terminoLower = (termino || '').toLowerCase();
         const postsFiltrados = this.posts.filter(post =>
-            (post.title || '').toLowerCase().includes(terminoLower) ||
-            (post.excerpt || '').toLowerCase().includes(terminoLower)
+            (post.titulo || '').toLowerCase().includes(terminoLower) ||
+            (post.descripcion || '').toLowerCase().includes(terminoLower) ||
+            (post.categoria || '').toLowerCase().includes(terminoLower)
         );
 
         container.innerHTML = postsFiltrados.map(post => this.crearCardPost(post)).join('');
@@ -160,7 +232,8 @@ if (contactForm) {
     abrirModal(postId) {
         if (!Array.isArray(this.posts)) return;
 
-        const post = this.posts.find(p => p.id === postId);
+        // ID es string - buscamos comparando como string
+        const post = this.posts.find(p => String(p.id) === String(postId));
         if (!post || !this.modal) return;
 
         const modalMedia = document.getElementById('modal-media');
@@ -168,18 +241,13 @@ if (contactForm) {
         const modalDescription = document.getElementById('modal-description');
         const modalDate = document.getElementById('modal-date');
 
-        const esVideo = this.esVideo(post.url);
-        const fechaFormateada = post.fecha
-            ? new Date(post.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
-            : '';
+        const mediaHtml = this._mediaHtml(post.archivo, post.tipo, post.thumbnail);
+        const fechaFormateada = post.fecha ? new Date(post.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
-        modalMedia.innerHTML = esVideo
-            ? `<video src="${post.url}" controls autoplay muted></video>`
-            : `<img src="${post.url}" alt="${post.title}">`;
-
-        modalTitle.textContent = post.title;
-        modalDescription.textContent = post.excerpt;
-        modalDate.textContent = fechaFormateada;
+        if (modalMedia) modalMedia.innerHTML = mediaHtml;
+        if (modalTitle) modalTitle.textContent = post.titulo || post.title || 'Sin título';
+        if (modalDescription) modalDescription.textContent = post.descripcion || post.excerpt || '';
+        if (modalDate) modalDate.textContent = fechaFormateada;
 
         this.modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
@@ -200,9 +268,11 @@ if (contactForm) {
         const statusDiv = document.getElementById('form-status');
 
         try {
-            statusDiv.style.display = 'block';
-            statusDiv.className = 'form-status loading';
-            statusDiv.innerHTML = '<p>Enviando mensaje...</p>';
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'form-status loading';
+                statusDiv.innerHTML = '<p>Enviando mensaje...</p>';
+            }
 
             const response = await fetch('/', {
                 method: 'POST',
@@ -211,26 +281,30 @@ if (contactForm) {
             });
 
             if (response.ok) {
-                statusDiv.className = 'form-status success';
-                statusDiv.innerHTML = '<p>✅ ¡Mensaje enviado! Te contactaré pronto.</p>';
-                e.target.reset();
+                if (statusDiv) {
+                    statusDiv.className = 'form-status success';
+                    statusDiv.innerHTML = '<p>✅ ¡Mensaje enviado! Te contactaré pronto.</p>';
+                    e.target.reset();
+                }
             } else {
                 throw new Error('Error en el envío');
             }
         } catch (error) {
-            statusDiv.className = 'form-status error';
-            statusDiv.innerHTML = '<p>❌ Error al enviar el mensaje. Intenta por WhatsApp.</p>';
+            if (statusDiv) {
+                statusDiv.className = 'form-status error';
+                statusDiv.innerHTML = '<p>❌ Error al enviar el mensaje. Intenta por WhatsApp.</p>';
+            }
         }
     }
 
     // Utilidades
     esVideo(archivo) {
-    if (!archivo || typeof archivo !== 'string' || !archivo.includes('.')) return false;
-    const extension = archivo.split('.').pop().toLowerCase();
-    return ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(extension);
-	}
+        if (!archivo || typeof archivo !== 'string') return false;
+        return /\.mp4($|\?)/i.test(archivo) || /\.webm($|\?)/i.test(archivo) || archivo.includes('youtube');
+    }
 
     truncarTexto(texto, limite) {
+        if (!texto) return '';
         if (texto.length <= limite) return texto;
         return texto.substring(0, limite) + '...';
     }
@@ -251,6 +325,11 @@ if (contactForm) {
             `;
         }
     }
+
+    _escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/[&<>"'`]/g, (s) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '`':'&#x60;'})[s]);
+    }
 }
 
 // Inicializar
@@ -260,13 +339,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Compartir
 window.compartirTrabajo = function(postId) {
-    const post = portfolio.posts.find(p => p.id === postId);
+    const post = (window.portfolio && window.portfolio.posts) ? window.portfolio.posts.find(p => String(p.id) === String(postId)) : null;
     if (!post) return;
 
     if (navigator.share) {
         navigator.share({
-            title: post.title,
-            text: post.excerpt,
+            title: post.titulo || post.title || '',
+            text: post.descripcion || post.excerpt || '',
             url: `${window.location.origin}?post=${post.id}`
         });
     } else {
