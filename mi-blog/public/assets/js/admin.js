@@ -227,9 +227,9 @@ class AdminPanel {
     this.clearStatus();
     try {
       // Validación preset
-      if (!this.CLOUD_NAME || !this.UPLOAD_PRESET || this.UPLOAD_PRESET === 'TU_UNSIGNED_PRESET' || this.UPLOAD_PRESET === 'mi_preset_unsigned') {
-        throw new Error('Configura UPLOAD_PRESET en admin.js antes de subir (reemplaza "mi_preset_unsigned").');
-      }
+      //if (!this.CLOUD_NAME || !this.UPLOAD_PRESET || this.UPLOAD_PRESET === 'TU_UNSIGNED_PRESET' || this.UPLOAD_PRESET === 'mi_preset_unsigned') {
+      //  throw new Error('Configura UPLOAD_PRESET en admin.js antes de subir (reemplaza "mi_preset_unsigned").');
+     // }
 
       const title = (this.titleInput && this.titleInput.value.trim()) || '';
       const excerpt = (this.excerptInput && this.excerptInput.value.trim()) || '';
