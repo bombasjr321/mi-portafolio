@@ -4,7 +4,72 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin - Subir posts</title>
+  <style>
+	/* ===== OVERRIDE: asegurar layout admin independiente de .post-card global ===== */
+.post-card.admin-post-card,
+.admin-post-card.post-card {
+  display: grid !important;
+  grid-template-columns: 100px 1fr auto !important;
+  gap: var(--spacing-lg) !important;
+  padding: var(--spacing-lg) !important;
+  background: var(--gradient-light) !important;
+  border-radius: var(--border-radius-md) !important;
+  align-items: center !important;
+  position: relative !important;
+  overflow: visible !important; /* evitar que algo quede recortado y tape botones */
+}
 
+/* Media area admin */
+.post-card.admin-post-card .admin-post-media,
+.admin-post-card .admin-post-media {
+  width: 100px !important;
+  height: 80px !important;
+  flex: none !important;
+  overflow: hidden !important;
+  border-radius: var(--border-radius-sm) !important;
+}
+
+/* Asegurar que img/video dentro admin no rompan layout */
+.post-card.admin-post-card .admin-post-media img,
+.post-card.admin-post-card .admin-post-media video,
+.admin-post-card .admin-post-media img,
+.admin-post-card .admin-post-media video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  pointer-events: none; /* evita que el media capture clicks que van destinados a botones (admin) */
+}
+
+/* Acciones: siempre visibles y clicables */
+.post-card.admin-post-card .admin-post-actions,
+.admin-post-card .admin-post-actions {
+  display: flex !important;
+  gap: var(--spacing-sm) !important;
+  justify-self: end !important;
+  z-index: 5 !important; /* arriba de cualquier media */
+}
+
+/* Forzar que botones se puedan clickear */
+.post-card.admin-post-card .admin-post-actions button,
+.admin-post-card .admin-post-actions button {
+  pointer-events: auto !important;
+  type: button; /* note: esto no es un selector — asegurarnos en JS/HTML que tengan type="button" */
+}
+
+/* Si por algún motivo .post-card global pone cursor:pointer, lo dejamos en admin neutral */
+.post-card.admin-post-card { cursor: default !important; }
+
+/* Pequeño ajuste responsive */
+@media (max-width: 768px) {
+  .post-card.admin-post-card {
+    grid-template-columns: 80px 1fr auto !important;
+    gap: var(--spacing-md) !important;
+  }
+  .post-card.admin-post-card .admin-post-media { width: 80px !important; height: 60px !important; }
+}
+
+  </style>
   <!-- Enlaza tu stylesheet principal -->
   <link rel="stylesheet" href="/assets/css/styles.css">
 </head>
