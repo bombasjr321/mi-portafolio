@@ -134,6 +134,99 @@
   display: block;
 }
 
+/* ===== SECCIÓN DE CONTACTO ===== */
+.contact-cta {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 4rem 0;
+  text-align: center;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" fill-opacity="0.1"/></pattern></defs><rect width="100" height="20" fill="url(%23grain)"/></svg>');
+  opacity: 0.3;
+}
+
+.contact-content {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.contact-cta h3 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.contact-cta p {
+  font-size: 1.3rem;
+  margin-bottom: 2.5rem;
+  opacity: 0.95;
+  font-weight: 300;
+}
+
+/* ===== BOTÓN WHATSAPP ===== */
+.whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #25d366;
+  color: white;
+  padding: 16px 32px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-size: 1.1rem;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.4);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.whatsapp-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.whatsapp-btn:hover::before {
+  left: 100%;
+}
+
+.whatsapp-btn:hover {
+  background: #20c157;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(37, 211, 102, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.whatsapp-btn:active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 15px rgba(37, 211, 102, 0.4);
+}
+
+.whatsapp-icon {
+  font-size: 1.4rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
 /* ===== MODAL MEJORADO ===== */
 .modal {
   display: none;
@@ -292,6 +385,33 @@
   }
 }
 
+/* ===== RESPONSIVE CONTACTO ===== */
+@media (max-width: 768px) {
+  .contact-cta {
+    padding: 3rem 0;
+  }
+  
+  .contact-cta h3 {
+    font-size: 1.8rem;
+    margin-bottom: 0.8rem;
+  }
+  
+  .contact-cta p {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .whatsapp-btn {
+    padding: 14px 28px;
+    font-size: 1rem;
+    gap: 10px;
+  }
+  
+  .whatsapp-icon {
+    font-size: 1.2rem;
+  }
+}
+
 @media (max-width: 480px) {
   #posts-container {
     grid-template-columns: 1fr !important;
@@ -333,6 +453,25 @@
     font-size: 20px;
     top: 8px;
     right: 8px;
+  }
+
+  .contact-cta {
+    padding: 2.5rem 1rem;
+  }
+  
+  .contact-cta h3 {
+    font-size: 1.5rem;
+  }
+  
+  .contact-cta p {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .whatsapp-btn {
+    padding: 12px 24px;
+    font-size: 0.95rem;
+    border-radius: 40px;
   }
 }
 
@@ -419,6 +558,22 @@
             </div>
         </section>
     </main>
+
+    <!-- NUEVA SECCIÓN DE CONTACTO -->
+    <section class="contact-cta">
+        <div class="container">
+            <div class="contact-content">
+                <h3>¿Te gustó mi trabajo?</h3>
+                <p>Contáctame de manera inmediata</p>
+                <a href="https://wa.me/573106291402?text=Hola,%20vi%20tu%20portafolio%20y%20me%20interesa%20contactarte" 
+                   target="_blank" 
+                   class="whatsapp-btn">
+                    <span class="whatsapp-icon">📱</span>
+                    Escribir por WhatsApp
+                </a>
+            </div>
+        </div>
+    </section>
 
     <footer>
         <div class="container">
