@@ -1,4 +1,4 @@
-// admin.js - Admin panel (Cloudinary upload + crear post)
+// public/assets/js/admin.js - Admin panel (Cloudinary upload + crear/editar/eliminar posts)
 class AdminPanel {
   constructor() {
     this.posts = [];
@@ -11,15 +11,19 @@ class AdminPanel {
     this.previewBtn = document.querySelector('#preview-btn');
     this.uploadStatus = document.querySelector('#upload-status');
 
-    // CONFIGURACIÓN Cloudinary: reemplaza con tu preset
+    // CONFIG Cloudinary (pon aquí tu preset unsigned)
     this.CLOUD_NAME = 'dhv8izd9i';              // ya lo tienes
-    this.UPLOAD_PRESET = 'mi_preset_unsigned';  // <- Cambia esto por tu preset unsigned
+    this.UPLOAD_PRESET = 'mi_preset_unsigned';  // <- Cambia por tu preset unsigned
 
     // Endpoint netlify function que actualiza posts.json
     this.UPLOAD_POST_ENDPOINT = '/.netlify/functions/upload-post';
+    this.DELETE_POST_ENDPOINT = '/.netlify/functions/delete-post';
 
     // Tamaño máximo recomendado en cliente (200 MB)
     this.MAX_SIZE_BYTES = 200 * 1024 * 1024;
+
+    // id del modal de edición
+    this.modalId = 'admin-edit-modal';
   }
 
   async init() {
@@ -35,6 +39,22 @@ class AdminPanel {
   attachListeners() {
     if (this.uploadForm) this.uploadForm.addEventListener('submit', (e) => this.manejarSubida(e));
     if (this.previewBtn) this.previewBtn.addEventListener('click', (e) => this.mostrarPreview(e));
+
+    // Delegación para botones Editar / Eliminar dentro del contenedor
+    if (this.container) {
+      this.container.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.btn-edit');
+        const delBtn = e.target.closest('.btn-delete');
+
+        if (editBtn) {
+          const id = editBtn.dataset.id;
+          this.abrirEditor(id);
+        } else if (delBtn) {
+          const id = delBtn.dataset.id;
+          this.confirmarYEliminar(id);
+        }
+      });
+    }
   }
 
   async cargarPosts() {
@@ -42,7 +62,7 @@ class AdminPanel {
       const resp = await fetch('/.netlify/functions/get-posts');
       if (!resp.ok) {
         const txt = await resp.text();
-        throw new Error(`Error ${resp.status} ${txt}`);
+        throw new Error(`Error ${resp.status}: ${txt}`);
       }
       const data = await resp.json();
       this.posts = Array.isArray(data) ? data : (Array.isArray(data.posts) ? data.posts : []);
@@ -72,7 +92,8 @@ class AdminPanel {
             <div class="admin-post-meta">${this._escapeHtml(excerpt).slice(0,120)}</div>
           </div>
           <div class="admin-post-actions">
-            <a class="btn-view" href="/admin/editar.html?slug=${encodeURIComponent(slug)}" target="_blank">Editar</a>
+            <button class="btn-view btn-edit" data-id="${this._escapeHtml(slug)}">Editar</button>
+            <button class="btn-delete" data-id="${this._escapeHtml(slug)}">Eliminar</button>
           </div>
         </article>
       `;
@@ -91,16 +112,15 @@ class AdminPanel {
       return `<iframe src="https://www.youtube.com/embed/${id}" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;min-height:80px;object-fit:cover;border:0;border-radius:6px"></iframe>`;
     }
 
-    // Video (mp4/webm) detection or explicit tipo === 'video'
+    // Video detection or explicit tipo === 'video'
     const isVideo = (typeof tipo === 'string' && tipo.toLowerCase() === 'video') || /\.mp4($|\?)/i.test(url) || /\.webm($|\?)/i.test(url);
     if (isVideo) {
-      // if we have thumbnail, show as poster
       const poster = thumbnail ? ` poster="${thumbnail}" ` : '';
-      return `<video src="${url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`;
+      return `<video src="${url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:6px"${poster}></video>`;
     }
 
     // image fallback
-    return `<img src="${url}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+    return `<img src="${url}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`;
   }
 
   _escapeHtml(text) {
@@ -124,12 +144,10 @@ class AdminPanel {
 
   async mostrarPreview(e) {
     e.preventDefault();
-    // crea o usa un contenedor .preview-area debajo del form
     let previewArea = document.querySelector('.preview-area');
     if (!previewArea) {
       previewArea = document.createElement('div');
       previewArea.className = 'preview-area';
-      // insert after form
       this.uploadForm.parentNode.insertBefore(previewArea, this.uploadForm.nextSibling);
     }
     previewArea.innerHTML = '';
@@ -148,7 +166,6 @@ class AdminPanel {
     } else {
       previewArea.innerHTML = `<div class="preview-card"><p>Tipo de archivo no soportado para preview.</p></div>`;
     }
-    // liberar objeto URL cuando ya no se necesita (opcional)
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
@@ -173,7 +190,7 @@ class AdminPanel {
 
       this.setStatus('Subiendo a Cloudinary...');
 
-      // Build cloudinary upload
+      // Subida a Cloudinary (auto endpoint soporta imagen/video)
       const cloudUrl = `https://api.cloudinary.com/v1_1/${this.CLOUD_NAME}/auto/upload`;
       const fd = new FormData();
       fd.append('file', file);
@@ -230,17 +247,171 @@ class AdminPanel {
       this.renderizarPostsAdmin();
       this.setStatus('Subida y post creado correctamente ✅', 'success');
       this.uploadForm.reset();
-      // borrar preview si existe
+
       const previewArea = document.querySelector('.preview-area');
       if (previewArea) previewArea.remove();
 
     } catch (err) {
       console.error('manejarSubida error:', err);
       if (!this.uploadStatus || !this.uploadStatus.style) return alert('Error en la subida: ' + (err.message || err));
-      // si ya seteamos mensaje de error arriba, no sobrescribir
       if (!this.uploadStatus.classList.contains('error')) {
         this.setStatus('Error en la subida: ' + (err.message || err), 'error');
       }
+    }
+  }
+
+  // Abre modal de edición (inline)
+  abrirEditor(id) {
+    const post = this.posts.find(p => String(p.id) === String(id) || String(p.slug || '') === String(id));
+    if (!post) return alert('No se encontró el post para editar.');
+
+    // crear modal si no existe
+    let modal = document.getElementById(this.modalId);
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = this.modalId;
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <span class="close-modal" id="${this.modalId}-close">&times;</span>
+          <h3>Editar trabajo</h3>
+          <form id="${this.modalId}-form">
+            <div class="form-group">
+              <label>Título</label>
+              <input name="titulo" type="text" required>
+            </div>
+            <div class="form-group">
+              <label>Descripción</label>
+              <textarea name="descripcion" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Categoría</label>
+              <input name="categoria" type="text">
+            </div>
+            <div class="form-group">
+              <label>URL del archivo (si no cambia, dejar)</label>
+              <input name="archivo" type="text">
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Guardar cambios</button>
+              <button type="button" id="${this.modalId}-cancel" class="btn-secondary">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // estilos mínimos encapsulados
+      const style = document.createElement('style');
+      style.innerHTML = `
+      #${this.modalId} { position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:2000; }
+      #${this.modalId} .modal-content { background:white; padding:20px; width:520px; max-width:94%; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.4); position:relative; }
+      #${this.modalId} .close-modal { position:absolute; right:18px; top:12px; font-size:26px; cursor:pointer; }
+      `;
+      document.head.appendChild(style);
+
+      // listeners
+      modal.querySelector(`#${this.modalId}-close`).addEventListener('click', () => this._closeModal(modal));
+      modal.querySelector(`#${this.modalId}-cancel`).addEventListener('click', () => this._closeModal(modal));
+      modal.querySelector(`#${this.modalId}-form`).addEventListener('submit', (e) => this._submitEdit(e, id));
+      modal.addEventListener('click', (e) => { if (e.target === modal) this._closeModal(modal); });
+    }
+
+    // rellenar campos
+    const form = modal.querySelector('form');
+    form.elements['titulo'].value = post.titulo || post.title || '';
+    form.elements['descripcion'].value = post.descripcion || post.excerpt || '';
+    form.elements['categoria'].value = post.categoria || post.category || '';
+    form.elements['archivo'].value = post.archivo || post.url || '';
+
+    modal.style.display = 'flex';
+  }
+
+  _closeModal(modal) {
+    if (!modal) modal = document.getElementById(this.modalId);
+    if (modal) modal.style.display = 'none';
+  }
+
+  async _submitEdit(e, id) {
+    e.preventDefault();
+    const modal = document.getElementById(this.modalId);
+    const form = modal.querySelector('form');
+    const titulo = (form.elements['titulo'].value || '').trim();
+    const descripcion = (form.elements['descripcion'].value || '').trim();
+    const categoria = (form.elements['categoria'].value || '').trim();
+    const archivo = (form.elements['archivo'].value || '').trim();
+
+    const payload = {
+      id: id,
+      titulo,
+      descripcion,
+      categoria,
+      archivo
+    };
+
+    try {
+      const resp = await fetch(this.UPLOAD_POST_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const body = await resp.json();
+      if (!resp.ok) {
+        console.error('Edit error:', body);
+        throw new Error(body.error || body.detail || `HTTP ${resp.status}`);
+      }
+
+      // actualizar localmente
+      this.posts = this.posts.map(p => {
+        if (String(p.id) === String(id) || String(p.slug || '') === String(id)) {
+          return {
+            ...p,
+            titulo: payload.titulo || p.titulo || p.title,
+            title: payload.titulo || p.title || p.titulo,
+            descripcion: payload.descripcion || p.descripcion || p.excerpt,
+            excerpt: payload.descripcion || p.excerpt || p.descripcion,
+            categoria: payload.categoria || p.categoria,
+            category: payload.categoria || p.category,
+            archivo: payload.archivo || p.archivo || p.url,
+            url: payload.archivo || p.url || p.archivo
+          };
+        }
+        return p;
+      });
+
+      this.renderizarPostsAdmin();
+      this._closeModal(modal);
+      alert('Cambios guardados correctamente.');
+    } catch (err) {
+      console.error('Error editando post:', err);
+      alert('Error editando: ' + (err.message || err));
+    }
+  }
+
+  async confirmarYEliminar(id) {
+    if (!confirm('¿Eliminar este trabajo? Esta operación no se puede deshacer.')) return;
+
+    try {
+      const resp = await fetch(this.DELETE_POST_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+
+      const body = await resp.json();
+      if (!resp.ok) {
+        console.error('delete error:', body);
+        throw new Error(body.error || body.detail || `HTTP ${resp.status}`);
+      }
+
+      // quitar del array y re-render
+      this.posts = this.posts.filter(p => String(p.id) !== String(id) && String(p.slug || '') !== String(id));
+      this.renderizarPostsAdmin();
+      alert('Trabajo eliminado correctamente.');
+    } catch (err) {
+      console.error('Error eliminando post:', err);
+      alert('Error eliminando: ' + (err.message || err));
     }
   }
 }

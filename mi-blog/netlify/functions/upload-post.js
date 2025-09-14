@@ -7,7 +7,7 @@ exports.handler = async (event, context) => {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
-
+  
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -22,7 +22,6 @@ exports.handler = async (event, context) => {
     }
 
     const payload = JSON.parse(event.body || '{}');
-
     const titulo = payload.titulo || payload.title || 'Sin título';
     const descripcion = payload.descripcion || payload.excerpt || '';
     const archivo = payload.archivo || payload.url || '';
@@ -30,26 +29,16 @@ exports.handler = async (event, context) => {
     const categoria = payload.categoria || (tipo === 'video' ? 'video' : 'imagen');
     const thumbnail = payload.thumbnail || null;
 
-    const nuevoPost = {
-      id: payload.id || `post_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
-      titulo,
-      descripcion,
-      categoria,
-      archivo,
-      tipo,
-      fecha: new Date().toISOString(),
-      thumbnail
-    };
-
     const owner = process.env.GITHUB_OWNER;
     const repo = process.env.GITHUB_REPO;
     const token = process.env.GITHUB_TOKEN;
-
     const candidatePaths = ['public/posts.json', 'data/posts.json'];
+    
     let posts = [];
     let postsSha = null;
     let postsPathUsed = null;
 
+    // Cargar posts.json existente
     for (const p of candidatePaths) {
       try {
         const getResp = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(p)}`, {
@@ -70,9 +59,68 @@ exports.handler = async (event, context) => {
     }
 
     if (!postsPathUsed) postsPathUsed = 'data/posts.json';
-    posts.unshift(nuevoPost);
+
+    let postId;
+    let isUpdate = false;
+
+    // LÓGICA DE CREACIÓN VS EDICIÓN
+    if (payload.id) {
+      // MODO EDICIÓN: Buscar y actualizar post existente
+      const foundIndex = posts.findIndex(p => 
+        String(p.id) === String(payload.id) || 
+        String(p.slug || '') === String(payload.id)
+      );
+
+      if (foundIndex >= 0) {
+        // Actualizar post existente
+        isUpdate = true;
+        postId = posts[foundIndex].id;
+        
+        posts[foundIndex] = {
+          ...posts[foundIndex],
+          titulo: payload.titulo ? payload.titulo.trim() : posts[foundIndex].titulo,
+          descripcion: payload.descripcion ? payload.descripcion.trim() : posts[foundIndex].descripcion,
+          categoria: payload.categoria || posts[foundIndex].categoria,
+          archivo: payload.archivo || posts[foundIndex].archivo,
+          tipo: payload.tipo || posts[foundIndex].tipo,
+          thumbnail: payload.thumbnail !== undefined ? payload.thumbnail : posts[foundIndex].thumbnail,
+          fecha: posts[foundIndex].fecha || new Date().toISOString()
+        };
+      } else {
+        // ID proporcionado pero no encontrado -> crear nuevo con ese ID
+        postId = payload.id;
+        const nuevoPost = {
+          id: postId,
+          titulo,
+          descripcion,
+          categoria,
+          archivo,
+          tipo,
+          fecha: new Date().toISOString(),
+          thumbnail
+        };
+        posts.unshift(nuevoPost);
+      }
+    } else {
+      // MODO CREACIÓN: Crear nuevo post
+      postId = `post_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+      const nuevoPost = {
+        id: postId,
+        titulo,
+        descripcion,
+        categoria,
+        archivo,
+        tipo,
+        fecha: new Date().toISOString(),
+        thumbnail
+      };
+      posts.unshift(nuevoPost);
+    }
+
+    // Limitar a 100 posts
     if (posts.length > 100) posts.length = 100;
 
+    // Actualizar posts.json en GitHub
     const updatedContent = Buffer.from(JSON.stringify(posts, null, 2), 'utf8').toString('base64');
 
     const commitResp = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(postsPathUsed)}`, {
@@ -83,7 +131,9 @@ exports.handler = async (event, context) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        message: `Update ${postsPathUsed} - add ${nuevoPost.titulo}`,
+        message: isUpdate ? 
+          `Update ${postsPathUsed} - edit ${titulo}` : 
+          `Update ${postsPathUsed} - add ${titulo}`,
         content: updatedContent,
         sha: postsSha || undefined
       })
@@ -98,9 +148,14 @@ exports.handler = async (event, context) => {
     const commitJson = await commitResp.json();
 
     return {
-      statusCode: 201,
+      statusCode: isUpdate ? 200 : 201,
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: true, id: nuevoPost.id, commit: commitJson })
+      body: JSON.stringify({ 
+        success: true, 
+        id: postId, 
+        message: isUpdate ? 'Post actualizado exitosamente' : 'Post creado exitosamente',
+        commit: commitJson 
+      })
     };
 
   } catch (err) {
@@ -108,4 +163,3 @@ exports.handler = async (event, context) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
-
