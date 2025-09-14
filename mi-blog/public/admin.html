@@ -74,11 +74,26 @@
   <link rel="stylesheet" href="/assets/css/styles.css">
 </head>
 <body class="admin-body">
+<!-- AUTH GUARD: Pega esto justo después de <body> en admin.html -->
+<script>
+  (function(){
+    const AUTH_KEY = 'admin_auth';
+    const isAuthed = (sessionStorage.getItem(AUTH_KEY) === '1') || (localStorage.getItem(AUTH_KEY) === '1');
+    const loginPath = '/login.html'; // ajusta si tu ruta es otra
+    const current = window.location.pathname.replace(/\/+$/,'');
+    if (!isAuthed && current !== new URL(loginPath, window.location.origin).pathname.replace(/\/+$/,'')) {
+      const to = loginPath + '?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.replace(to);
+    }
+  })();
+</script>
 
   <header class="admin-header">
     <div class="container">
       <h1 style="color:var(--color-white)">Panel Admin — Subir trabajos</h1>
     </div>
+    <button id="admin-logout" class="btn-secondary" style="margin-left:12px;">Cerrar sesión</button>
+
   </header>
 
   <main class="admin-main container">

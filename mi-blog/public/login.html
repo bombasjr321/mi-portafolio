@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin — Login</title>
+  <style>
+    :root{
+      --bg:#f6f8fb; --card:#ffffff; --accent:#3498db; --dark:#1f2937;
+      --radius:12px; --spacing:14px; --maxw:480px;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,Arial; margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg,#eef3fb,#f8fafc); color:var(--dark)}
+    .wrap{width:100%; max-width:var(--maxw); padding:28px; background:var(--card); border-radius:var(--radius); box-shadow:0 10px 40px rgba(20,30,60,.08); margin:20px;}
+    h1{margin:0 0 8px 0; font-size:1.3rem}
+    p.lead{margin:0 0 18px 0; color:#546477}
+    .form-group{margin-bottom:12px}
+    label{display:block;font-weight:600;margin-bottom:6px;font-size:.95rem}
+    input[type="text"], input[type="password"]{width:100%; padding:12px; border:1px solid #e1e6ee; border-radius:8px; font-size:1rem}
+    .btn{display:inline-block;padding:10px 18px;border-radius:8px;border:none;background:var(--accent);color:white;font-weight:700;cursor:pointer}
+    .btn.secondary{background:#f1f5f9;color:var(--dark); border:1px solid #e2e8f0}
+    .note{font-size:.9rem;color:#677488;margin-top:10px}
+    .error{color:#8b1d1d;background:#fdecea;padding:10px;border-radius:8px;margin-top:10px}
+    footer{margin-top:12px;font-size:.85rem;color:#99a3b3;text-align:center}
+    .brand{display:flex;gap:12px;align-items:center;margin-bottom:18px}
+    .brand img{width:46px;height:46px;border-radius:8px;object-fit:cover}
+  </style>
+</head>
+<body>
+  <main class="wrap" role="main" aria-labelledby="title">
+    <div class="brand">
+      <img src="/assets/images/logo.jpeg" alt="logo" onerror="this.style.display='none'">
+      <div>
+        <h1 id="title">Acceso Admin</h1>
+        <p class="lead">Introduce tus credenciales para entrar al panel de administración.</p>
+      </div>
+    </div>
+
+    <form id="login-form" autocomplete="off" novalidate>
+      <div class="form-group">
+        <label for="user">Usuario</label>
+        <input id="user" name="user" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="pass">Contraseña</label>
+        <input id="pass" name="pass" type="password" required>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+        <button type="submit" class="btn">Entrar</button>
+        <button type="button" id="logout-clear" class="btn secondary">Borrar sesión</button>
+      </div>
+
+      <div id="login-error" class="error" style="display:none"></div>
+
+      <p class="note">Nota: esto es una protección *client-side* (suficiente para evitar accesos casuales). Si necesitas seguridad real, usa Netlify Identity u otro sistema server-side.</p>
+    </form>
+
+    <footer>
+      <small>Admin simple — sesión en <strong>sessionStorage</strong>. La página redirige al panel tras iniciar sesión.</small>
+    </footer>
+  </main>
+
+  <script>
+    // ---- CONFIGURA AQUÍ tus credenciales ----
+    // Cambia esto por usuario/contraseña que prefieras
+    const ADMIN_USER = 'admin';
+    const ADMIN_PASS = 'tu_contraseña_segura';
+    // -----------------------------------------
+
+    // Key que usaremos en sessionStorage
+    const AUTH_KEY = 'admin_auth';
+
+    // Si ya está autenticado, redirigimos al admin (o al ?next)
+    (function redirectIfAuthed() {
+      try {
+        if (sessionStorage.getItem(AUTH_KEY) === '1') {
+          const params = new URLSearchParams(window.location.search);
+          const next = params.get('next') || '/admin';
+          window.location.replace(next);
+        }
+      } catch (e) { /* ignorar en navegadores con bloqueo */ }
+    })();
+
+    const form = document.getElementById('login-form');
+    const errDiv = document.getElementById('login-error');
+    const logoutClear = document.getElementById('logout-clear');
+
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      errDiv.style.display = 'none';
+
+      const u = (document.getElementById('user').value || '').trim();
+      const p = (document.getElementById('pass').value || '').trim();
+
+      if (u === ADMIN_USER && p === ADMIN_PASS) {
+        try {
+          sessionStorage.setItem(AUTH_KEY, '1'); // sesión temporal, se borra al cerrar pestaña
+        } catch (e) {
+          // fallback a localStorage si sessionStorage falla
+          localStorage.setItem(AUTH_KEY, '1');
+        }
+        // redirigir al siguiente (si hay)
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next') || '/admin';
+        window.location.replace(next);
+      } else {
+        errDiv.textContent = 'Usuario o contraseña incorrectos.';
+        errDiv.style.display = 'block';
+      }
+    });
+
+    // Botón para borrar cualquier token previo
+    logoutClear.addEventListener('click', () => {
+      try { sessionStorage.removeItem(AUTH_KEY); } catch(e){ localStorage.removeItem(AUTH_KEY); }
+      alert('Sesión borrada (si existía).');
+    });
+  </script>
+</body>
+</html>
+

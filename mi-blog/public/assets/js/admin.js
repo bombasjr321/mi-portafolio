@@ -493,6 +493,17 @@ if (typeof window !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
     window.adminPanel = new AdminPanel();
     window.adminPanel.init();
+	  // Logout handler: quitar token y redirigir al login
+(function(){
+  const btn = document.getElementById('admin-logout');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    try { sessionStorage.removeItem('admin_auth'); } catch(e){ localStorage.removeItem('admin_auth'); }
+    // redirigir al login
+    window.location.href = '/admin/login.html';
+  });
+})();
+
   });
 }
 
